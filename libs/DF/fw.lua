@@ -1,11 +1,12 @@
 
-local dversion = 139
+local dversion = 211
+
 local major, minor = "DetailsFramework-1.0", dversion
 local DF, oldminor = LibStub:NewLibrary (major, minor)
 
 if (not DF) then
 	DetailsFrameworkCanLoad = false
-	return 
+	return
 end
 
 DetailsFrameworkCanLoad = true
@@ -16,14 +17,110 @@ local _type = type
 local _unpack = unpack
 local upper = string.upper
 local string_match = string.match
+local tinsert = _G.tinsert
+local abs = _G.abs
+local tremove = _G.tremove
+
+local UnitPlayerControlled = UnitPlayerControlled
+local UnitIsTapDenied = UnitIsTapDenied
 
 SMALL_NUMBER = 0.000001
 ALPHA_BLEND_AMOUNT = 0.8400251
 
+DF.dversion = dversion
+
 DF.AuthorInfo = {
-	Name = "Tercioo",
+	Name = "Terciob",
 	Discord = "https://discord.gg/AGSzAZX",
 }
+
+if (not PixelUtil) then
+	--check if is in classic wow, if it is, build a replacement for PixelUtil
+	local gameVersion = GetBuildInfo()
+	if (gameVersion:match("%d") == "1") then
+		PixelUtil = {
+			SetWidth = function (self, width) self:SetWidth (width) end,
+			SetHeight = function (self, height) self:SetHeight (height) end,
+			SetSize = function (self, width, height) self:SetSize (width, height) end,
+			SetPoint = function (self, ...) self:SetPoint (...) end,
+		}
+	end
+end
+
+function DF.IsClassicWow()
+	local gameVersion = GetBuildInfo()
+	if (gameVersion:match ("%d") == "1") then
+		return true
+	end
+	return false
+end
+
+function DF.UnitGroupRolesAssigned (unitId)
+	if (UnitGroupRolesAssigned) then
+		return UnitGroupRolesAssigned (unitId)
+	else
+		--attempt to guess the role by the player spec
+		
+		--at the moment just return none
+		return "NONE"
+	end
+end
+
+--return the specialization of the player it self
+function DF.GetSpecialization()
+	if (GetSpecialization) then
+		return GetSpecialization()
+	end
+	
+	return nil
+end
+
+function DF.GetSpecializationInfoByID (...)
+	if (GetSpecializationInfoByID) then
+		return GetSpecializationInfoByID (...)
+	end
+	
+	return nil
+end
+
+function DF.GetSpecializationInfo (...)
+	if (GetSpecializationInfo) then
+		return GetSpecializationInfo (...)
+	end
+	
+	return nil
+end
+
+function DF.GetSpecializationRole (...)
+	if (GetSpecializationRole) then
+		return GetSpecializationRole (...)
+	end
+	
+	return nil
+end
+
+--build dummy encounter journal functions if they doesn't exists
+--this is done for compatibility with classic and if in the future EJ_ functions are moved to C_
+DF.EncounterJournal = {
+	EJ_GetCurrentInstance = EJ_GetCurrentInstance or function() return nil end,
+	EJ_GetInstanceForMap = EJ_GetInstanceForMap or function() return nil end,
+	EJ_GetInstanceInfo = EJ_GetInstanceInfo or function() return nil end,
+	EJ_SelectInstance = EJ_SelectInstance or function() return nil end,
+	
+	EJ_GetEncounterInfoByIndex = EJ_GetEncounterInfoByIndex or function() return nil end,
+	EJ_GetEncounterInfo = EJ_GetEncounterInfo or function() return nil end,
+	EJ_SelectEncounter = EJ_SelectEncounter or function() return nil end,
+	
+	EJ_GetSectionInfo = EJ_GetSectionInfo or function() return nil end,
+	EJ_GetCreatureInfo = EJ_GetCreatureInfo or function() return nil end,
+	EJ_SetDifficulty = EJ_SetDifficulty or function() return nil end,
+	EJ_GetNumLoot = EJ_GetNumLoot or function() return 0 end,
+	EJ_GetLootInfoByIndex = EJ_GetLootInfoByIndex or function() return nil end,
+}
+
+if (not EJ_GetCurrentInstance) then
+	
+end
 
 --> will always give a very random name for our widgets
 local init_counter = math.random (1, 1000000)
@@ -41,6 +138,8 @@ DF.SplitBarCounter = DF.SplitBarCounter or init_counter
 
 DF.FRAMELEVEL_OVERLAY = 750
 DF.FRAMELEVEL_BACKGROUND = 150
+
+--/dump DetailsFramework:PrintVersion()
 
 DF.FrameWorkVersion = tostring (dversion)
 function DF:PrintVersion()
@@ -137,6 +236,8 @@ local embed_functions = {
 	"CreateGlowOverlay",
 	"CreateAnts",
 	"CreateFrameShake",
+	"RegisterScriptComm",
+	"SendScriptComm",
 }
 
 DF.WidgetFunctions = {
@@ -215,6 +316,22 @@ function DF.table.copy (t1, t2)
 			if (type (value) == "table") then
 				t1 [key] = t1 [key] or {}
 				DF.table.copy (t1 [key], t2 [key])
+			else
+				t1 [key] = value
+			end
+		end
+	end
+	return t1
+end
+
+--> copy from table2 to table1 overwriting values but do not copy data that cannot be compressed
+function DF.table.copytocompress (t1, t2)
+	for key, value in pairs (t2) do
+		print (key, value)
+		if (key ~= "__index" and type(value) ~= "function") then
+			if (type (value) == "table") then
+				t1 [key] = t1 [key] or {}
+				DF.table.copytocompress (t1 [key], t2 [key])
 			else
 				t1 [key] = value
 			end
@@ -356,6 +473,22 @@ function DF:CommaValue (value)
 	--source http://richard.warburton.it
 	local left, num, right = string_match (value, '^([^%d]*%d)(%d*)(.-)$')
 	return left .. (num:reverse():gsub ('(%d%d%d)','%1,'):reverse()) .. right
+end
+
+function DF:GroupIterator (func, ...)
+	if (IsInRaid()) then
+		for i = 1, GetNumGroupMembers() do
+			DF:QuickDispatch (func, "raid" .. i, ...)
+		end
+	
+	elseif (IsInGroup()) then
+		for i = 1, GetNumGroupMembers() - 1 do
+			DF:QuickDispatch (func, "party" .. i, ...)
+		end
+	
+	else
+		DF:QuickDispatch (func, "player", ...)
+	end
 end
 
 function DF:IntegerToTimer (value)
@@ -804,9 +937,524 @@ end
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 --> menus
-	
+
 	local disable_on_combat = {}
-	
+
+	local getMenuWidgetVolative = function(parent, widgetType, indexTable)
+
+		local widget
+
+		if (widgetType == "label") then
+			widget = parent.widget_list_by_type[widgetType][indexTable[widgetType]]
+			if (not widget) then
+				widget = DF:CreateLabel (parent, "", 10, "white", "", nil, "$parentWidget" .. widgetType .. indexTable[widgetType], "overlay")
+				tinsert(parent.widget_list, widget)
+				tinsert(parent.widget_list_by_type[widgetType], widget)
+			end
+
+			indexTable[widgetType] = indexTable[widgetType] + 1
+
+		elseif (widgetType == "dropdown") then
+			widget = parent.widget_list_by_type[widgetType][indexTable[widgetType]]
+			
+			if (not widget) then
+				widget = DF:CreateDropDown (parent, function() return {} end, nil, 140, 18, nil, "$parentWidget" .. widgetType .. indexTable[widgetType])
+				widget.hasLabel = DF:CreateLabel (parent, "", 10, "white", "", nil, "$parentWidget" .. widgetType .. indexTable[widgetType] .. "label", "overlay")
+				tinsert(parent.widget_list, widget)
+				tinsert(parent.widget_list_by_type[widgetType], widget)
+
+			else
+				widget:ClearHooks()
+				widget.hasLabel.text = ""
+			end
+
+			indexTable[widgetType] = indexTable[widgetType] + 1
+
+		elseif (widgetType == "switch") then
+			widget = parent.widget_list_by_type[widgetType][indexTable[widgetType]]
+
+			if (not widget) then
+				widget = DF:CreateSwitch (parent, nil, true, 20, 20, nil, nil, nil, "$parentWidget" .. widgetType .. indexTable[widgetType])
+				widget.hasLabel = DF:CreateLabel (parent, "", 10, "white", "", nil, "$parentWidget" .. widgetType .. indexTable[widgetType] .. "label", "overlay")
+
+				tinsert(parent.widget_list, widget)
+				tinsert(parent.widget_list_by_type[widgetType], widget)
+			else
+				widget:ClearHooks()
+			end
+
+			indexTable[widgetType] = indexTable[widgetType] + 1
+
+		elseif (widgetType == "slider") then
+			widget = parent.widget_list_by_type[widgetType][indexTable[widgetType]]
+			
+			if (not widget) then
+				widget = DF:CreateSlider (parent, 140, 20, 1, 2, 1, 1, false, nil, "$parentWidget" .. widgetType .. indexTable[widgetType])
+				widget.hasLabel = DF:CreateLabel (parent, "", 10, "white", "", nil, "$parentWidget" .. widgetType .. indexTable[widgetType] .. "label", "overlay")
+
+				tinsert(parent.widget_list, widget)
+				tinsert(parent.widget_list_by_type[widgetType], widget)
+			else
+				widget:ClearHooks()
+			end
+
+			indexTable[widgetType] = indexTable[widgetType] + 1
+
+		elseif (widgetType == "color") then
+			widget = parent.widget_list_by_type[widgetType][indexTable[widgetType]]
+			
+			if (not widget) then
+				widget = DF:CreateColorPickButton (parent, "$parentWidget" .. widgetType .. indexTable[widgetType], nil, function()end, 1)
+				widget.hasLabel = DF:CreateLabel (parent, "", 10, "white", "", nil, "$parentWidget" .. widgetType .. indexTable[widgetType] .. "label", "overlay")
+
+				tinsert(parent.widget_list, widget)
+				tinsert(parent.widget_list_by_type[widgetType], widget)
+			else
+				widget:ClearHooks()
+			end
+
+			indexTable[widgetType] = indexTable[widgetType] + 1
+
+		elseif (widgetType == "button") then
+			widget = parent.widget_list_by_type[widgetType][indexTable[widgetType]]
+			
+			if (not widget) then
+				widget = DF:CreateButton (parent, function()end, 120, 18, "", nil, nil, nil, nil, "$parentWidget" .. widgetType .. indexTable[widgetType])
+				widget.hasLabel = DF:CreateLabel (parent, "", 10, "white", "", nil, "$parentWidget" .. widgetType .. indexTable[widgetType] .. "label", "overlay")
+
+				tinsert(parent.widget_list, widget)
+				tinsert(parent.widget_list_by_type[widgetType], widget)
+			else
+				widget:ClearHooks()
+			end
+
+			indexTable[widgetType] = indexTable[widgetType] + 1
+
+		elseif (widgetType == "textentry") then
+			widget = parent.widget_list_by_type[widgetType][indexTable[widgetType]]
+			
+			if (not widget) then
+				widget = DF:CreateTextEntry (parent, function()end, 120, 18, nil, "$parentWidget" .. widgetType .. indexTable[widgetType])
+				widget.hasLabel = DF:CreateLabel (parent, "", 10, "white", "", nil, "$parentWidget" .. widgetType .. indexTable[widgetType] .. "label", "overlay")
+
+				tinsert(parent.widget_list, widget)
+				tinsert(parent.widget_list_by_type[widgetType], widget)
+			else
+				widget:ClearHooks()
+			end
+
+			indexTable[widgetType] = indexTable[widgetType] + 1
+		end
+
+		--if the widget is inside the no combat table, remove it
+		for i = 1, #disable_on_combat do
+			if (disable_on_combat[i] == widget) then
+				tremove(disable_on_combat, i)
+				break
+			end
+		end
+
+		return widget
+	end
+
+	--volatile menu can be called several times, each time all settings are reset and a new menu is built using the same widgets
+	function DF:BuildMenuVolatile (parent, menu, x_offset, y_offset, height, use_two_points, text_template, dropdown_template, switch_template, switch_is_box, slider_template, button_template, value_change_hook)
+		
+		if (not parent.widget_list) then
+			DF:SetAsOptionsPanel (parent)
+		end
+		DF:ClearOptionsPanel(parent)
+
+		local cur_x = x_offset
+		local cur_y = y_offset
+		local max_x = 0
+
+		local latestInlineWidget
+
+		local widgetIndexes = {
+			label = 1,
+			dropdown = 1,
+			switch = 1,
+			slider = 1,
+			color = 1,
+			button = 1,
+			textentry = 1,
+		}
+
+		height = abs ((height or parent:GetHeight()) - abs (y_offset) + 20)
+		height = height*-1
+
+		for index, widget_table in ipairs(menu) do
+
+			local widget_created
+			if (latestInlineWidget) then
+				if (not widget_table.inline) then
+					latestInlineWidget = nil
+					cur_y = cur_y - 20
+				end
+			end
+
+			if (not widget_table.novolatile) then
+
+				--step a line
+				if (widget_table.type == "blank" or widget_table.type == "space") then
+					-- do nothing
+
+				elseif (widget_table.type == "label" or widget_table.type == "text") then
+
+					local label = getMenuWidgetVolative(parent, "label", widgetIndexes)
+					widget_created = label
+
+					label.text = widget_table.get() or widget_table.text or ""
+					label.color = widget_table.color
+
+					if (widget_table.font) then
+						label.fontface = widget_table.font
+					end
+
+					if (widget_table.text_template or text_template) then
+						label:SetTemplate(widget_table.text_template or text_template)
+					else
+						label.fontsize = widget_table.size or 10
+					end
+
+					label._get = widget_table.get
+					label.widget_type = "label"
+					label:ClearAllPoints()
+					label:SetPoint (cur_x, cur_y)
+
+					if (widget_table.id) then
+						parent.widgetids [widget_table.id] = label
+					end
+
+				--dropdowns
+				elseif (widget_table.type == "select" or widget_table.type == "dropdown") then
+
+					local dropdown = getMenuWidgetVolative(parent, "dropdown", widgetIndexes)
+					widget_created = dropdown
+
+					dropdown:SetFunction(widget_table.values)
+					dropdown:Refresh()
+					dropdown:Select (widget_table.get())
+					dropdown:SetTemplate (dropdown_template)
+
+					dropdown.tooltip = widget_table.desc
+					dropdown._get = widget_table.get
+					dropdown.widget_type = "select"
+
+
+					dropdown.hasLabel.text = widget_table.name .. (use_two_points and ": " or "")
+					dropdown.hasLabel:SetTemplate(widget_table.text_template or text_template)
+					dropdown:ClearAllPoints()
+					dropdown:SetPoint ("left", dropdown.hasLabel, "right", 2)
+					dropdown.hasLabel:ClearAllPoints()
+					dropdown.hasLabel:SetPoint (cur_x, cur_y)
+
+					--> global callback
+					if (value_change_hook) then
+						dropdown:SetHook ("OnOptionSelected", value_change_hook)
+					end
+					
+					--> hook list (hook list is wiped when getting the widget)
+					if (widget_table.hooks) then
+						for hookName, hookFunc in pairs (widget_table.hooks) do
+							dropdown:SetHook (hookName, hookFunc)
+						end
+					end
+
+					if (widget_table.id) then
+						parent.widgetids [widget_table.id] = dropdown
+					end
+					
+					local size = dropdown.hasLabel.widget:GetStringWidth() + 140 + 4
+					if (size > max_x) then
+						max_x = size
+					end
+
+				--switchs
+				elseif (widget_table.type == "toggle" or widget_table.type == "switch") then
+
+					local switch = getMenuWidgetVolative(parent, "switch", widgetIndexes)
+					widget_created = switch
+
+					switch:SetValue(widget_table.get())
+					switch:SetTemplate(switch_template)
+					switch:SetAsCheckBox() --it's always a checkbox on volatile menu
+
+					switch.tooltip = widget_table.desc
+					switch._get = widget_table.get
+					switch.widget_type = "toggle"
+					switch.OnSwitch = widget_table.set
+					
+					if (value_change_hook) then
+						switch:SetHook ("OnSwitch", value_change_hook)
+					end
+					
+					--> hook list
+					if (widget_table.hooks) then
+						for hookName, hookFunc in pairs (widget_table.hooks) do
+							switch:SetHook (hookName, hookFunc)
+						end
+					end
+
+					if (widget_table.width) then
+						switch:SetWidth(widget_table.width)
+					end
+					if (widget_table.height) then
+						switch:SetHeight(widget_table.height)
+					end
+
+					switch.hasLabel.text = widget_table.name .. (use_two_points and ": " or "")
+					switch.hasLabel:SetTemplate(widget_table.text_template or text_template)
+
+					switch:ClearAllPoints()
+					switch.hasLabel:ClearAllPoints()
+
+					if (widget_table.boxfirst) then
+						switch:SetPoint (cur_x, cur_y)
+						switch.hasLabel:SetPoint ("left", switch, "right", 2)
+					else
+						switch.hasLabel:SetPoint (cur_x, cur_y)
+						switch:SetPoint ("left", switch.hasLabel, "right", 2)
+					end
+
+					if (widget_table.id) then
+						parent.widgetids [widget_table.id] = switch
+					end
+					
+					local size = switch.hasLabel:GetStringWidth() + 60 + 4
+					if (size > max_x) then
+						max_x = size
+					end
+
+				--slider
+				elseif (widget_table.type == "range" or widget_table.type == "slider") then
+
+					local slider = getMenuWidgetVolative(parent, "slider", widgetIndexes)
+					widget_created = slider
+
+					if (widget_table.usedecimals) then
+						slider.slider:SetValueStep (0.01)
+					else
+						slider.slider:SetValueStep (widget_table.step)
+					end
+					slider.useDecimals = widget_table.usedecimals
+
+					slider.slider:SetMinMaxValues (widget_table.min, widget_table.max)
+					slider.slider:SetValue (widget_table.get())
+					slider.ivalue = slider.slider:GetValue()
+
+					slider:SetTemplate(slider_template)
+
+					slider.tooltip = widget_table.desc
+					slider._get = widget_table.get
+					slider.widget_type = "range"
+					slider:SetHook ("OnValueChange", widget_table.set)
+
+					if (value_change_hook) then
+						slider:SetHook ("OnValueChange", value_change_hook)
+					end
+					
+					if (widget_table.thumbscale) then
+						slider:SetThumbSize (slider.thumb.originalWidth * widget_table.thumbscale, nil)
+					else
+						slider:SetThumbSize (slider.thumb.originalWidth * 1.3, nil)
+					end
+
+					--> hook list
+					if (widget_table.hooks) then
+						for hookName, hookFunc in pairs (widget_table.hooks) do
+							slider:SetHook (hookName, hookFunc)
+						end
+					end
+
+					slider.hasLabel.text = widget_table.name .. (use_two_points and ": " or "")
+					slider.hasLabel:SetTemplate(widget_table.text_template or text_template)
+					
+					slider:SetPoint ("left", slider.hasLabel, "right", 2)
+					slider.hasLabel:SetPoint (cur_x, cur_y)
+					
+					if (widget_table.id) then
+						parent.widgetids [widget_table.id] = slider
+					end
+
+					local size = slider.hasLabel:GetStringWidth() + 140 + 6
+					if (size > max_x) then
+						max_x = size
+					end
+
+				--color
+				elseif (widget_table.type == "color" or widget_table.type == "color") then
+
+					local colorpick = getMenuWidgetVolative(parent, "color", widgetIndexes)
+					widget_created = colorpick
+
+					colorpick.color_callback = widget_table.set --callback
+					colorpick:SetTemplate(button_template)
+
+					colorpick.tooltip = widget_table.desc
+					colorpick._get = widget_table.get
+					colorpick.widget_type = "color"
+
+					local default_value, g, b, a = widget_table.get()
+					if (type (default_value) == "table") then
+						colorpick:SetColor (unpack (default_value))
+					else
+						colorpick:SetColor (default_value, g, b, a)
+					end
+					
+					if (value_change_hook) then
+						colorpick:SetHook ("OnColorChanged", value_change_hook)
+					end
+					
+					--> hook list
+					if (widget_table.hooks) then
+						for hookName, hookFunc in pairs (widget_table.hooks) do
+							colorpick:SetHook (hookName, hookFunc)
+						end
+					end
+
+					colorpick.hasLabel.text = widget_table.name .. (use_two_points and ": " or "")
+					colorpick.hasLabel:SetTemplate(widget_table.text_template or text_template)
+					
+					colorpick:SetPoint ("left", colorpick.hasLabel, "right", 2)
+					colorpick.hasLabel:SetPoint (cur_x, cur_y)
+					
+					if (widget_table.id) then
+						parent.widgetids [widget_table.id] = colorpick
+					end
+
+					local size = colorpick.hasLabel:GetStringWidth() + 60 + 4
+					if (size > max_x) then
+						max_x = size
+					end
+
+				--button
+				elseif (widget_table.type == "execute" or widget_table.type == "button") then
+					
+					local button = getMenuWidgetVolative(parent, "button", widgetIndexes)
+					widget_created = button
+
+					button:SetTemplate(button_template)
+					button:SetSize(widget_table.width or 120, widget_table.height or 18)
+					button:SetClickFunction(widget_table.func, widget_table.param1, widget_table.param2)
+
+					local textTemplate = widget_table.text_template or text_template or DF.font_templates ["ORANGE_FONT_TEMPLATE"]
+					button.textcolor = textTemplate.color
+					button.textfont = textTemplate.font
+					button.textsize = textTemplate.size
+					button.text = widget_table.name
+
+					if (widget_table.inline) then
+						if (latestInlineWidget) then
+							button:SetPoint ("left", latestInlineWidget, "right", 2, 0)
+							latestInlineWidget = button
+						else
+							button:SetPoint (cur_x, cur_y)
+							latestInlineWidget = button
+						end
+					else
+						button:SetPoint (cur_x, cur_y)
+					end
+
+					button.tooltip = widget_table.desc
+					button.widget_type = "execute"
+					
+					--> execute doesn't trigger global callback
+					
+					--> hook list
+					if (widget_table.hooks) then
+						for hookName, hookFunc in pairs (widget_table.hooks) do
+							button:SetHook (hookName, hookFunc)
+						end
+					end
+
+					if (widget_table.width) then
+						button:SetWidth(widget_table.width)
+					end
+					if (widget_table.height) then
+						button:SetHeight(widget_table.height)
+					end
+
+					if (widget_table.id) then
+						parent.widgetids [widget_table.id] = button
+					end
+					
+					local size = button:GetWidth() + 4
+					if (size > max_x) then
+						max_x = size
+					end
+
+				--textentry
+				elseif (widget_table.type == "textentry") then
+
+					local textentry = getMenuWidgetVolative(parent, "textentry", widgetIndexes)
+					widget_created = textentry
+
+					textentry:SetCommitFunction(widget_table.func or widget_table.set)
+					textentry:SetTemplate(widget_table.template or widget_table.button_template or button_template)
+					textentry:SetSize(widget_table.width or 120, widget_table.height or 18)
+
+					textentry.tooltip = widget_table.desc
+					textentry.text = widget_table.get()
+					textentry._get = widget_table.get
+					textentry.widget_type = "textentry"
+					textentry:SetHook ("OnEnterPressed", widget_table.func or widget_table.set)
+					textentry:SetHook ("OnEditFocusLost", widget_table.func or widget_table.set)
+
+					textentry.hasLabel.text = widget_table.name .. (use_two_points and ": " or "")
+					textentry.hasLabel:SetTemplate(widget_table.text_template or text_template)
+					textentry:SetPoint ("left", textentry.hasLabel, "right", 2)
+					textentry.hasLabel:SetPoint (cur_x, cur_y)
+
+					--> text entry doesn't trigger global callback
+					
+					--> hook list
+					if (widget_table.hooks) then
+						for hookName, hookFunc in pairs (widget_table.hooks) do
+							textentry:SetHook (hookName, hookFunc)
+						end
+					end
+
+					if (widget_table.id) then
+						parent.widgetids [widget_table.id] = textentry
+					end
+					
+					local size = textentry.hasLabel:GetStringWidth() + 60 + 4
+					if (size > max_x) then
+						max_x = size
+					end
+
+				end --end loop
+
+				if (widget_table.nocombat) then
+					tinsert (disable_on_combat, widget_created)
+				end
+			
+				if (not widget_table.inline) then
+					if (widget_table.spacement) then
+						cur_y = cur_y - 30
+					else
+						cur_y = cur_y - 20
+					end
+				end
+				
+				if (widget_table.type == "breakline" or cur_y < height) then
+					cur_y = y_offset
+					cur_x = cur_x + max_x + 30
+					line_widgets_created = 0
+					max_x = 0
+				end
+				
+				if widget_created then
+					widget_created:Show()
+				end
+			end
+		end
+
+		DF.RefreshUnsafeOptionsWidgets()
+	end
+
 	function DF:BuildMenu (parent, menu, x_offset, y_offset, height, use_two_points, text_template, dropdown_template, switch_template, switch_is_box, slider_template, button_template, value_change_hook)
 		
 		if (not parent.widget_list) then
@@ -818,32 +1466,50 @@ end
 		local max_x = 0
 		local line_widgets_created = 0 --how many widgets has been created on this line loop pass
 		
+		local latestInlineWidget
+
 		height = abs ((height or parent:GetHeight()) - abs (y_offset) + 20)
 		height = height*-1
 		
-		for index, widget_table in ipairs (menu) do 
+		for index, widget_table in ipairs (menu) do
 		
 			local widget_created
+			if (latestInlineWidget) then
+				if (not widget_table.inline) then
+					latestInlineWidget = nil
+					cur_y = cur_y - 28
+				end
+			end
 		
 			if (widget_table.type == "blank" or widget_table.type == "space") then
 				-- do nothing
-		
+
 			elseif (widget_table.type == "label" or widget_table.type == "text") then
 				local label = DF:CreateLabel (parent, widget_table.get() or widget_table.text, widget_table.text_template or text_template or widget_table.size, widget_table.color, widget_table.font, nil, "$parentWidget" .. index, "overlay")
 				label._get = widget_table.get
 				label.widget_type = "label"
 				label:SetPoint (cur_x, cur_y)
+
+				--store the widget created into the overall table and the widget by type
 				tinsert (parent.widget_list, label)
+				tinsert (parent.widget_list_by_type.label, label)
+
 				line_widgets_created = line_widgets_created + 1
+
+				if (widget_table.id) then
+					parent.widgetids [widget_table.id] = label
+				end
 			
 			elseif (widget_table.type == "select" or widget_table.type == "dropdown") then
 				local dropdown = DF:NewDropDown (parent, nil, "$parentWidget" .. index, nil, 140, 18, widget_table.values, widget_table.get(), dropdown_template)
 				dropdown.tooltip = widget_table.desc
 				dropdown._get = widget_table.get
 				dropdown.widget_type = "select"
+
 				local label = DF:NewLabel (parent, nil, "$parentLabel" .. index, nil, widget_table.name .. (use_two_points and ": " or ""), "GameFontNormal", widget_table.text_template or text_template or 12)
 				dropdown:SetPoint ("left", label, "right", 2)
 				label:SetPoint (cur_x, cur_y)
+				dropdown.hasLabel = label
 				
 				--> global callback
 				if (value_change_hook) then
@@ -856,13 +1522,20 @@ end
 						dropdown:SetHook (hookName, hookFunc)
 					end
 				end
+
+				if (widget_table.id) then
+					parent.widgetids [widget_table.id] = dropdown
+				end
 				
 				local size = label.widget:GetStringWidth() + 140 + 4
 				if (size > max_x) then
 					max_x = size
 				end
 				
+				--store the widget created into the overall table and the widget by type
 				tinsert (parent.widget_list, dropdown)
+				tinsert (parent.widget_list_by_type.dropdown, dropdown)
+
 				widget_created = dropdown
 				line_widgets_created = line_widgets_created + 1
 				
@@ -887,17 +1560,37 @@ end
 						switch:SetHook (hookName, hookFunc)
 					end
 				end
-				
+
+				if (widget_table.width) then
+					switch:SetWidth(widget_table.width)
+				end
+				if (widget_table.height) then
+					switch:SetHeight(widget_table.height)
+				end
+
 				local label = DF:NewLabel (parent, nil, "$parentLabel" .. index, nil, widget_table.name .. (use_two_points and ": " or ""), "GameFontNormal", widget_table.text_template or text_template or 12)
-				switch:SetPoint ("left", label, "right", 2)
-				label:SetPoint (cur_x, cur_y)
+				if (widget_table.boxfirst) then
+					switch:SetPoint (cur_x, cur_y)
+					label:SetPoint ("left", switch, "right", 2)
+				else
+					label:SetPoint (cur_x, cur_y)
+					switch:SetPoint ("left", label, "right", 2)
+				end
+				switch.hasLabel = label
+
+				if (widget_table.id) then
+					parent.widgetids [widget_table.id] = switch
+				end
 				
 				local size = label.widget:GetStringWidth() + 60 + 4
 				if (size > max_x) then
 					max_x = size
 				end
 				
+				--store the widget created into the overall table and the widget by type
 				tinsert (parent.widget_list, switch)
+				tinsert (parent.widget_list_by_type.switch, switch)
+
 				widget_created = switch
 				line_widgets_created = line_widgets_created + 1
 				
@@ -929,13 +1622,21 @@ end
 				local label = DF:NewLabel (parent, nil, "$parentLabel" .. index, nil, widget_table.name .. (use_two_points and ": " or ""), "GameFontNormal", widget_table.text_template or text_template or 12)
 				slider:SetPoint ("left", label, "right", 2)
 				label:SetPoint (cur_x, cur_y)
+				slider.hasLabel = label
 				
+				if (widget_table.id) then
+					parent.widgetids [widget_table.id] = slider
+				end
+
 				local size = label.widget:GetStringWidth() + 140 + 6
 				if (size > max_x) then
 					max_x = size
 				end
 				
+				--store the widget created into the overall table and the widget by type
 				tinsert (parent.widget_list, slider)
+				tinsert (parent.widget_list_by_type.slider, slider)
+
 				widget_created = slider
 				line_widgets_created = line_widgets_created + 1
 				
@@ -966,13 +1667,21 @@ end
 				local label = DF:NewLabel (parent, nil, "$parentLabel" .. index, nil, widget_table.name .. (use_two_points and ": " or ""), "GameFontNormal", widget_table.text_template or text_template or 12)
 				colorpick:SetPoint ("left", label, "right", 2)
 				label:SetPoint (cur_x, cur_y)
+				colorpick.hasLabel = label
 				
+				if (widget_table.id) then
+					parent.widgetids [widget_table.id] = colorpick
+				end
+
 				local size = label.widget:GetStringWidth() + 60 + 4
 				if (size > max_x) then
 					max_x = size
 				end
 				
+				--store the widget created into the overall table and the widget by type
 				tinsert (parent.widget_list, colorpick)
+				tinsert (parent.widget_list_by_type.color, colorpick)
+
 				widget_created = colorpick
 				line_widgets_created = line_widgets_created + 1
 				
@@ -983,40 +1692,71 @@ end
 					button:InstallCustomTexture()
 				end
 
-				button:SetPoint (cur_x, cur_y)
+				if (widget_table.inline) then
+					if (latestInlineWidget) then
+						button:SetPoint ("left", latestInlineWidget, "right", 2, 0)
+						latestInlineWidget = button
+					else
+						button:SetPoint (cur_x, cur_y)
+						latestInlineWidget = button
+					end
+				else
+					button:SetPoint (cur_x, cur_y)
+				end
+
 				button.tooltip = widget_table.desc
 				button.widget_type = "execute"
 				
-				--> execute doesn't trigger global callback
+				--notice: execute doesn't trigger global callback
 				
-				--> hook list
+				--button icon
+				if (widget_table.icontexture) then
+					button:SetIcon(widget_table.icontexture, nil, nil, nil, widget_table.icontexcoords, nil, nil, 2)
+				end
+
+				--hook list
 				if (widget_table.hooks) then
 					for hookName, hookFunc in pairs (widget_table.hooks) do
 						button:SetHook (hookName, hookFunc)
 					end
-				end				
+				end
+
+				if (widget_table.id) then
+					parent.widgetids [widget_table.id] = button
+				end
+
+				if (widget_table.width) then
+					button:SetWidth(widget_table.width)
+				end
+				if (widget_table.height) then
+					button:SetHeight(widget_table.height)
+				end
 				
 				local size = button:GetWidth() + 4
 				if (size > max_x) then
 					max_x = size
 				end
 				
+				--store the widget created into the overall table and the widget by type
 				tinsert (parent.widget_list, button)
+				tinsert (parent.widget_list_by_type.button, button)
+
 				widget_created = button
 				line_widgets_created = line_widgets_created + 1
 				
 			elseif (widget_table.type == "textentry") then
-				local textentry = DF:CreateTextEntry (parent, widget_table.func, 120, 18, nil, "$parentWidget" .. index, nil, button_template)
+				local textentry = DF:CreateTextEntry (parent, widget_table.func or widget_table.set, 120, 18, nil, "$parentWidget" .. index, nil, button_template)
 				textentry.tooltip = widget_table.desc
 				textentry.text = widget_table.get()
 				textentry._get = widget_table.get
 				textentry.widget_type = "textentry"
-				textentry:SetHook ("OnEnterPressed", widget_table.set)
-				textentry:SetHook ("OnEditFocusLost", widget_table.set)
+				textentry:SetHook ("OnEnterPressed", widget_table.func or widget_table.set)
+				textentry:SetHook ("OnEditFocusLost", widget_table.func or widget_table.set)
 
 				local label = DF:NewLabel (parent, nil, "$parentLabel" .. index, nil, widget_table.name .. (use_two_points and ": " or ""), "GameFontNormal", widget_table.text_template or text_template or 12)
 				textentry:SetPoint ("left", label, "right", 2)
 				label:SetPoint (cur_x, cur_y)
+				textentry.hasLabel = label
 
 				--> text entry doesn't trigger global callback
 				
@@ -1026,13 +1766,20 @@ end
 						textentry:SetHook (hookName, hookFunc)
 					end
 				end
+
+				if (widget_table.id) then
+					parent.widgetids [widget_table.id] = textentry
+				end
 				
 				local size = label.widget:GetStringWidth() + 60 + 4
 				if (size > max_x) then
 					max_x = size
 				end
 				
+				--store the widget created into the overall table and the widget by type
 				tinsert (parent.widget_list, textentry)
+				tinsert (parent.widget_list_by_type.textentry, textentry)
+
 				widget_created = textentry
 				line_widgets_created = line_widgets_created + 1
 				
@@ -1042,10 +1789,12 @@ end
 				tinsert (disable_on_combat, widget_created)
 			end
 		
-			if (widget_table.spacement) then
-				cur_y = cur_y - 30
-			else
-				cur_y = cur_y - 20
+			if (not widget_table.inline) then
+				if (widget_table.spacement) then
+					cur_y = cur_y - 30
+				else
+					cur_y = cur_y - 20
+				end
 			end
 			
 			if (widget_table.type == "breakline" or cur_y < height) then
@@ -1189,9 +1938,35 @@ end
 		end
 	end
 	
+	local get_frame_by_id = function (self, id)
+		return self.widgetids [id]
+	end
+
+	function DF:ClearOptionsPanel(frame)
+		for i = 1, #frame.widget_list do
+			frame.widget_list[i]:Hide()
+			if (frame.widget_list[i].hasLabel) then
+				frame.widget_list[i].hasLabel:SetText("")
+			end
+		end
+
+		table.wipe(frame.widgetids)
+	end
+
 	function DF:SetAsOptionsPanel (frame)
 		frame.RefreshOptions = refresh_options
 		frame.widget_list = {}
+		frame.widget_list_by_type = {
+			["dropdown"] = {}, -- "select"
+			["switch"] = {}, -- "toggle"
+			["slider"] = {}, -- "range"
+			["color"] = {}, --
+			["button"] = {}, -- "execute"
+			["textentry"] = {}, --
+			["label"] = {}, --"text"
+		}
+		frame.widgetids = {}
+		frame.GetWidgetById = get_frame_by_id
 	end
 	
 	function DF:CreateOptionsFrame (name, title, template)
@@ -1301,7 +2076,7 @@ end
 	end	
 	
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
---> templates
+--> ~templates
 
 --fonts
 
@@ -1359,11 +2134,22 @@ DF.font_templates ["OPTIONS_FONT_TEMPLATE"] = {color = "yellow", size = 12, font
 
 DF.dropdown_templates = DF.dropdown_templates or {}
 DF.dropdown_templates ["OPTIONS_DROPDOWN_TEMPLATE"] = {
-	backdrop = {edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true},
-	backdropcolor = {1, 1, 1, .5},
+	backdrop = {
+		edgeFile = [[Interface\Buttons\WHITE8X8]],
+		edgeSize = 1,
+		bgFile = [[Interface\Tooltips\UI-Tooltip-Background]],
+		tileSize = 64,
+		tile = true
+	},
+
+	backdropcolor = {1, 1, 1, .7},
 	backdropbordercolor = {0, 0, 0, 1},
-	onentercolor = {1, 1, 1, .5},
+	onentercolor = {1, 1, 1, .9},
 	onenterbordercolor = {1, 1, 1, 1},
+
+	dropicon = "Interface\\BUTTONS\\arrow-Down-Down",
+	dropiconsize = {16, 16},
+	dropiconpoints = {-2, -3},
 }
 
 -- switches
@@ -1518,8 +2304,9 @@ function DF:SetHook (hookType, func)
 			if (not isRemoval) then
 				tinsert (self.HookList [hookType], func)
 			end
-		else 
+		else
 			if (DF.debug) then
+				print (debugstack())
 				error ("Details! Framework: invalid function for widget " .. self.WidgetType .. ".")
 			end
 		end
@@ -1527,6 +2314,24 @@ function DF:SetHook (hookType, func)
 		if (DF.debug) then
 			error ("Details! Framework: unknown hook type for widget " .. self.WidgetType .. ": '" .. hookType .. "'.")
 		end
+	end
+end
+
+function DF:HasHook (hookType, func)
+	if (self.HookList [hookType]) then
+		if (type (func) == "function") then
+			for i = #self.HookList [hookType], 1, -1 do
+				if (self.HookList [hookType] [i] == func) then
+					return true
+				end
+			end
+		end
+	end
+end
+
+function DF:ClearHooks()
+	for hookType, hookTable in pairs(self.HookList) do
+		table.wipe(hookTable)
 	end
 end
 
@@ -1548,6 +2353,7 @@ DF.GlobalWidgetControlNames = {
 	slider = "DF_SliderMetaFunctions",
 	split_bar = "DF_SplitBarMetaFunctions",
 	aura_tracker = "DF_AuraTracker",
+	healthBar = "DF_healthBarMetaFunctions",
 }
 
 function DF:AddMemberForWidget (widgetName, memberType, memberName, func)
@@ -1976,6 +2782,7 @@ local glow_overlay_play = function (self)
 		self.animOut:Stop()
 	end
 	if (not self.animIn:IsPlaying()) then
+		self.animIn:Stop()
 		self.animIn:Play()
 	end
 end
@@ -2364,9 +3171,11 @@ function DF:ReskinSlider (slider, heightOffset)
 		slider.cima:GetPushedTexture():SetPoint ("center", slider.cima, "center", 1, 1)
 		slider.cima:GetDisabledTexture():SetPoint ("center", slider.cima, "center", 1, 1)
 		slider.cima:SetSize (16, 16)
+		--[=[
 		slider.cima:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\AddOns\Details\images\background]]})
 		slider.cima:SetBackdropColor (0, 0, 0, 0.3)
 		slider.cima:SetBackdropBorderColor (0, 0, 0, 1)
+		]=]
 		
 		slider.baixo:SetNormalTexture ([[Interface\Buttons\Arrow-Down-Up]])
 		slider.baixo:SetPushedTexture ([[Interface\Buttons\Arrow-Down-Down]])
@@ -2378,6 +3187,7 @@ function DF:ReskinSlider (slider, heightOffset)
 		slider.baixo:GetPushedTexture():SetPoint ("center", slider.baixo, "center", 1, -5)
 		slider.baixo:GetDisabledTexture():SetPoint ("center", slider.baixo, "center", 1, -5)
 		slider.baixo:SetSize (16, 16)
+		--[=[
 		slider.baixo:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\AddOns\Details\images\background]]})
 		slider.baixo:SetBackdropColor (0, 0, 0, 0.35)
 		slider.baixo:SetBackdropBorderColor (0, 0, 0, 1)
@@ -2385,6 +3195,7 @@ function DF:ReskinSlider (slider, heightOffset)
 		slider.slider:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\AddOns\Details\images\background]]})
 		slider.slider:SetBackdropColor (0, 0, 0, 0.35)
 		slider.slider:SetBackdropBorderColor (0, 0, 0, 1)
+		]=]
 		
 		--slider.slider:Altura (164)
 		slider.slider:cimaPoint (0, 13)
@@ -2396,34 +3207,38 @@ function DF:ReskinSlider (slider, heightOffset)
 		
 	else
 		--up button
+
+		local offset = 1 --space between the scrollbox and the scrollar
+
 		do
 			local normalTexture = slider.ScrollBar.ScrollUpButton.Normal
 			normalTexture:SetTexture ([[Interface\Buttons\Arrow-Up-Up]])
 			normalTexture:SetTexCoord (0, 1, .2, 1)
 			
-			normalTexture:SetPoint ("topleft", slider.ScrollBar.ScrollUpButton, "topleft", 1, 0)
-			normalTexture:SetPoint ("bottomright", slider.ScrollBar.ScrollUpButton, "bottomright", 1, 0)
+			normalTexture:SetPoint ("topleft", slider.ScrollBar.ScrollUpButton, "topleft", offset, 0)
+			normalTexture:SetPoint ("bottomright", slider.ScrollBar.ScrollUpButton, "bottomright", offset, 0)
 			
 			local pushedTexture = slider.ScrollBar.ScrollUpButton.Pushed
 			pushedTexture:SetTexture ([[Interface\Buttons\Arrow-Up-Down]])
 			pushedTexture:SetTexCoord (0, 1, .2, 1)
 			
-			pushedTexture:SetPoint ("topleft", slider.ScrollBar.ScrollUpButton, "topleft", 1, 0)
-			pushedTexture:SetPoint ("bottomright", slider.ScrollBar.ScrollUpButton, "bottomright", 1, 0)
+			pushedTexture:SetPoint ("topleft", slider.ScrollBar.ScrollUpButton, "topleft", offset, 0)
+			pushedTexture:SetPoint ("bottomright", slider.ScrollBar.ScrollUpButton, "bottomright", offset, 0)
 
 			local disabledTexture = slider.ScrollBar.ScrollUpButton.Disabled
 			disabledTexture:SetTexture ([[Interface\Buttons\Arrow-Up-Disabled]])
 			disabledTexture:SetTexCoord (0, 1, .2, 1)
 			disabledTexture:SetAlpha (.5)
 			
-			disabledTexture:SetPoint ("topleft", slider.ScrollBar.ScrollUpButton, "topleft", 1, 0)
-			disabledTexture:SetPoint ("bottomright", slider.ScrollBar.ScrollUpButton, "bottomright", 1, 0)
+			disabledTexture:SetPoint ("topleft", slider.ScrollBar.ScrollUpButton, "topleft", offset, 0)
+			disabledTexture:SetPoint ("bottomright", slider.ScrollBar.ScrollUpButton, "bottomright", offset, 0)
 			
 			slider.ScrollBar.ScrollUpButton:SetSize (16, 16)
+			--[=[
 			slider.ScrollBar.ScrollUpButton:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = "Interface\\Tooltips\\UI-Tooltip-Background"})
 			slider.ScrollBar.ScrollUpButton:SetBackdropColor (0, 0, 0, 0.3)
 			slider.ScrollBar.ScrollUpButton:SetBackdropBorderColor (0, 0, 0, 1)
-			
+			]=]
 			--it was having problems with the texture anchor when calling ClearAllPoints() and setting new points different from the original
 			--now it is using the same points from the original with small offsets tp align correctly
 		end
@@ -2434,53 +3249,61 @@ function DF:ReskinSlider (slider, heightOffset)
 			normalTexture:SetTexture ([[Interface\Buttons\Arrow-Down-Up]])
 			normalTexture:SetTexCoord (0, 1, 0, .8)
 			
-			normalTexture:SetPoint ("topleft", slider.ScrollBar.ScrollDownButton, "topleft", 1, -4)
-			normalTexture:SetPoint ("bottomright", slider.ScrollBar.ScrollDownButton, "bottomright", 1, -4)
+			normalTexture:SetPoint ("topleft", slider.ScrollBar.ScrollDownButton, "topleft", offset, -4)
+			normalTexture:SetPoint ("bottomright", slider.ScrollBar.ScrollDownButton, "bottomright", offset, -4)
 			
 			local pushedTexture = slider.ScrollBar.ScrollDownButton.Pushed
 			pushedTexture:SetTexture ([[Interface\Buttons\Arrow-Down-Down]])
 			pushedTexture:SetTexCoord (0, 1, 0, .8)
 			
-			pushedTexture:SetPoint ("topleft", slider.ScrollBar.ScrollDownButton, "topleft", 1, -4)
-			pushedTexture:SetPoint ("bottomright", slider.ScrollBar.ScrollDownButton, "bottomright", 1, -4)
+			pushedTexture:SetPoint ("topleft", slider.ScrollBar.ScrollDownButton, "topleft", offset, -4)
+			pushedTexture:SetPoint ("bottomright", slider.ScrollBar.ScrollDownButton, "bottomright", offset, -4)
 			
 			local disabledTexture = slider.ScrollBar.ScrollDownButton.Disabled
 			disabledTexture:SetTexture ([[Interface\Buttons\Arrow-Down-Disabled]])
 			disabledTexture:SetTexCoord (0, 1, 0, .8)
 			disabledTexture:SetAlpha (.5)
 			
-			disabledTexture:SetPoint ("topleft", slider.ScrollBar.ScrollDownButton, "topleft", 1, -4)
-			disabledTexture:SetPoint ("bottomright", slider.ScrollBar.ScrollDownButton, "bottomright", 1, -4)
+			disabledTexture:SetPoint ("topleft", slider.ScrollBar.ScrollDownButton, "topleft", offset, -4)
+			disabledTexture:SetPoint ("bottomright", slider.ScrollBar.ScrollDownButton, "bottomright", offset, -4)
 			
 			slider.ScrollBar.ScrollDownButton:SetSize (16, 16)
+			--[=[
 			slider.ScrollBar.ScrollDownButton:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = "Interface\\Tooltips\\UI-Tooltip-Background"})
 			slider.ScrollBar.ScrollDownButton:SetBackdropColor (0, 0, 0, 0.3)
 			slider.ScrollBar.ScrollDownButton:SetBackdropBorderColor (0, 0, 0, 1)
+			]=]
 
 			--<Anchor point="TOP" relativePoint="BOTTOM"/>
 			--slider.ScrollBar.ScrollDownButton:SetPoint ("top", slider.ScrollBar, "bottom", 0, 0)
 		end
 		
-		--
-		
-		slider.ScrollBar:SetPoint ("TOPLEFT", slider, "TOPRIGHT", 6, -16)
-		slider.ScrollBar:SetPoint ("BOTTOMLEFT", slider, "BOTTOMRIGHT", 6, 16 + (heightOffset and heightOffset*-1 or 0))
-		
+		--if the parent has a editbox, this is a code editor
+		if (slider:GetParent().editbox) then
+			slider.ScrollBar:SetPoint ("TOPLEFT", slider, "TOPRIGHT", 12 + offset, -6)
+			slider.ScrollBar:SetPoint ("BOTTOMLEFT", slider, "BOTTOMRIGHT", 12 + offset, 6 + (heightOffset and heightOffset*-1 or 0))
+
+		else
+			slider.ScrollBar:SetPoint ("TOPLEFT", slider, "TOPRIGHT", 6, -16)
+			slider.ScrollBar:SetPoint ("BOTTOMLEFT", slider, "BOTTOMRIGHT", 6, 16 + (heightOffset and heightOffset*-1 or 0))
+		end
+
 		slider.ScrollBar.ThumbTexture:SetColorTexture (.5, .5, .5, .3)
 		slider.ScrollBar.ThumbTexture:SetSize (12, 8)
 		
 		--
-		
+		--[=[
 		slider.ScrollBar:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = "Interface\\Tooltips\\UI-Tooltip-Background"})
 		slider.ScrollBar:SetBackdropColor (0, 0, 0, 0.35)
 		slider.ScrollBar:SetBackdropBorderColor (0, 0, 0, 1)
+		]=]
 	end
 end
 
 function DF:GetCurrentSpec()
-	local specIndex = GetSpecialization()
+	local specIndex = DF.GetSpecialization()
 	if (specIndex) then
-		local specID = GetSpecializationInfo (specIndex)
+		local specID = DF.GetSpecializationInfo (specIndex)
 		if (specID and specID ~= 0) then
 			return specID
 		end
@@ -2559,7 +3382,7 @@ function DF:CoreDispatch (context, func, ...)
 	local okay, result1, result2, result3, result4 = pcall (func, ...)
 	
 	if (not okay) then
-		local stack = debugstack (2)
+		local stack = debugstack(2)
 		local errortext = "D!Framework (" .. context .. ") error: " .. result1 .. "\n====================\n" .. stack .. "\n====================\n"
 		error (errortext)
 	end
@@ -2582,6 +3405,22 @@ function DF_CALC_PERFORMANCE()
 		F:SetScript ("OnUpdate", nil)
 	end)
 end
+
+DF.ClassIndexToFileName = {
+	[6] = "DEATHKNIGHT",
+	[1] = "WARRIOR",
+	[4] = "ROGUE",
+	[8] = "MAGE",
+	[5] = "PRIEST",
+	[3] = "HUNTER",
+	[9] = "WARLOCK",
+	[12] = "DEMONHUNTER",
+	[7] = "SHAMAN",
+	[11] = "DRUID",
+	[10] = "MONK",
+	[2] = "PALADIN",
+}
+
 
 DF.ClassFileNameToIndex = {
 	["DEATHKNIGHT"] = 6,
@@ -2768,8 +3607,8 @@ DF.CLEncounterID = {
 function DF:GetPlayerRole()
 	local assignedRole = UnitGroupRolesAssigned ("player")
 	if (assignedRole == "NONE") then
-		local spec = GetSpecialization()
-		return spec and GetSpecializationRole (spec) or "NONE"
+		local spec = DF.GetSpecialization()
+		return spec and DF.GetSpecializationRole (spec) or "NONE"
 	end
 	return assignedRole
 end
@@ -2777,6 +3616,256 @@ end
 function DF:GetCLEncounterIDs()
 	return DF.CLEncounterID
 end
+
+DF.ClassSpecs = {
+	["DEMONHUNTER"] = {
+		[577] = true, 
+		[581] = true,
+	},
+	["DEATHKNIGHT"] = {
+		[250] = true,
+		[251] = true,
+		[252] = true,
+	},
+	["WARRIOR"] = {
+		[71] = true,
+		[72] = true,
+		[73] = true,
+	},
+	["MAGE"] = {
+		[62] = true,
+		[63] = true,
+		[64] = true,
+	},
+	["ROGUE"] = {
+		[259] = true,
+		[260] = true,		
+		[261] = true,
+	},
+	["DRUID"] = {
+		[102] = true,
+		[103] = true,
+		[104] = true,
+		[105] = true,
+	},
+	["HUNTER"] = {
+		[253] = true,
+		[254] = true,		
+		[255] = true,
+	},
+	["SHAMAN"] = {
+		[262] = true,
+		[263] = true,
+		[264] = true,
+	},
+	["PRIEST"] = {
+		[256] = true,
+		[257] = true,
+		[258] = true,
+	},
+	["WARLOCK"] = {
+		[265] = true,
+		[266] = true,
+		[267] = true,
+	},
+	["PALADIN"] = {
+		[65] = true,
+		[66] = true,
+		[70] = true,
+	},
+	["MONK"] = {
+		[268] = true, 
+		[269] = true, 
+		[270] = true, 
+	},
+}
+
+DF.SpecListByClass = {
+	["DEMONHUNTER"] = {
+		577, 
+		581,
+	},
+	["DEATHKNIGHT"] = {
+		250,
+		251,
+		252,
+	},
+	["WARRIOR"] = {
+		71,
+		72,
+		73,
+	},
+	["MAGE"] = {
+		62,
+		63,
+		64,
+	},
+	["ROGUE"] = {
+		259,
+		260,		
+		261,
+	},
+	["DRUID"] = {
+		102,
+		103,
+		104,
+		105,
+	},
+	["HUNTER"] = {
+		253,
+		254,		
+		255,
+	},
+	["SHAMAN"] = {
+		262,
+		263,
+		264,
+	},
+	["PRIEST"] = {
+		256,
+		257,
+		258,
+	},
+	["WARLOCK"] = {
+		265,
+		266,
+		267,
+	},
+	["PALADIN"] = {
+		65,
+		66,
+		70,
+	},
+	["MONK"] = {
+		268, 
+		269, 
+		270, 
+	},
+}
+
+--given a class and a  specId, return if the specId is a spec from the class passed
+function DF:IsSpecFromClass(class, specId)
+	return DF.ClassSpecs[class] and DF.ClassSpecs[class][specId]
+end
+
+--return a has table where specid is the key and 'true' is the value
+function DF:GetClassSpecs(class)
+	return DF.ClassSpecs [class]
+end
+
+--return a numeric table with spec ids
+function DF:GetSpecListFromClass(class)
+	return DF.SpecListByClass [class]
+end
+
+--return a list with specIds as keys and spellId as value
+function DF:GetSpellsForRangeCheck()
+	return SpellRangeCheckListBySpec
+end
+
+--return a list with specIds as keys and spellId as value
+function DF:GetRangeCheckSpellForSpec(specId)
+	return SpellRangeCheckListBySpec[specId]
+end
+
+
+--key is instanceId from GetInstanceInfo()
+-- /dump GetInstanceInfo()
+DF.BattlegroundSizes = {
+	[2245] = 15, --Deepwind Gorge
+	[2106] = 10, --Warsong Gulch
+	[2107] = 15, --Arathi Basin
+	[566] = 15, --Eye of the Storm
+	[30]  = 40,	--Alterac Valley
+	[628] = 40, --Isle of Conquest
+	[761] = 10, --The Battle for Gilneas
+	[726] = 10, --Twin Peaks
+	[727] = 10, --Silvershard Mines
+	[998] = 10, --Temple of Kotmogu
+	[2118] = 40, --Battle for Wintergrasp
+	[1191] = 25, --Ashran
+	[1803] = 10, --Seething Shore
+}
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--> execute range
+
+	function DF.GetExecuteRange(unitId)
+		unitId = unitId or "player"
+
+		local classLoc, class = UnitClass(unitId)
+		local spec = GetSpecialization()
+		
+		if (spec and class) then
+			--prist
+			if (class == "PRIEST") then
+				--playing as shadow?
+				local specID = GetSpecializationInfo(spec)
+				if (specID and specID ~= 0) then
+					if (specID == 258) then --shadow
+						local _, _, _, using_SWDeath = GetTalentInfo(5, 2, 1)
+						if (using_SWDeath) then
+							return 0.20
+						end
+					end
+				end
+				
+			elseif (class == "MAGE") then
+				--playing fire mage?
+				local specID = GetSpecializationInfo(spec)
+				if (specID and specID ~= 0) then
+					if (specID == 63) then --fire
+						local _, _, _, using_SearingTouch = GetTalentInfo(1, 3, 1)
+						if (using_SearingTouch) then
+							return 0.30
+						end
+					end
+				end
+				
+			elseif (class == "WARRIOR") then
+				--is playing as a Arms warrior?
+				local specID = GetSpecializationInfo(spec)
+				if (specID and specID ~= 0) then
+
+					if (specID == 71) then --arms
+						local _, _, _, using_Massacre = GetTalentInfo(3, 1, 1)
+						if (using_Massacre) then
+							--if using massacre, execute can be used at 35% health in Arms spec
+							return 0.35
+						end
+					end
+
+					if (specID == 71 or specID == 72) then --arms or fury
+						return 0.20
+					end
+				end
+				
+			elseif (class == "HUNTER") then
+				local specID = GetSpecializationInfo(spec)
+				if (specID and specID ~= 0) then
+					if (specID == 253) then --beast mastery
+						--> is using killer instinct?
+						local _, _, _, using_KillerInstinct = GetTalentInfo(1, 1, 1)
+						if (using_KillerInstinct) then
+							return 0.35
+						end
+					end
+				end
+
+			elseif (class == "PALADIN") then
+				local specID = GetSpecializationInfo(spec)
+				if (specID and specID ~= 0) then
+					if (specID == 70) then --retribution paladin
+						--> is using hammer of wrath?
+						local _, _, _, using_HammerOfWrath = GetTalentInfo(2, 3, 1)
+						if (using_HammerOfWrath) then
+							return 0.20
+						end
+					end
+				end
+			end
+		end
+	end	
 
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2795,6 +3884,67 @@ function GetWorldDeltaSeconds()
 	return deltaTimeFrame.deltaTime
 end
 
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--> build the global script channel for scripts communication
+--send and retrieve data sent by othe users in scripts
+--Usage:
+--DetailsFramework:RegisterScriptComm (ID, function(sourcePlayerName, ...) end)
+--DetailsFramework:SendScriptComm (ID, ...)
+
+	local aceComm = LibStub:GetLibrary ("AceComm-3.0")
+	local LibAceSerializer = LibStub:GetLibrary ("AceSerializer-3.0")
+	local LibDeflate = LibStub:GetLibrary ("LibDeflate")
+	
+	DF.RegisteredScriptsComm = DF.RegisteredScriptsComm or {}
+	
+	function DF.OnReceiveScriptComm (...)
+		local prefix, encodedString, channel, commSource = ...
+		
+		local decodedString = LibDeflate:DecodeForWoWAddonChannel (encodedString)
+		if (decodedString) then
+			local uncompressedString = LibDeflate:DecompressDeflate (decodedString)
+			if (uncompressedString) then
+				local data = {LibAceSerializer:Deserialize (uncompressedString)}
+				if (data[1]) then
+					local ID = data[2]
+					if (ID) then
+						local sourceName = data[4]
+						if (Ambiguate (sourceName, "none") == commSource) then
+							local func = DF.RegisteredScriptsComm [ID]
+							if (func) then
+								DF:Dispatch (func, commSource, select (5, unpack (data))) --this use xpcall
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+	
+	function DF:RegisterScriptComm (ID, func)
+		if (ID) then
+			if (type (func) == "function") then
+				DF.RegisteredScriptsComm [ID] = func
+			else
+				DF.RegisteredScriptsComm [ID] = nil
+			end
+		end
+	end
+	
+	function DF:SendScriptComm (ID, ...)
+		if (DF.RegisteredScriptsComm [ID]) then
+			local sourceName = UnitName ("player") .. "-" .. GetRealmName()
+			local data = LibAceSerializer:Serialize (ID, UnitGUID ("player"), sourceName, ...)
+			data = LibDeflate:CompressDeflate (data, {level = 9})
+			data = LibDeflate:EncodeForWoWAddonChannel (data)
+			aceComm:SendCommMessage ("_GSC", data, "PARTY")
+		end
+	end
+	
+	if (aceComm and LibAceSerializer and LibDeflate) then
+		aceComm:RegisterComm ("_GSC", DF.OnReceiveScriptComm)
+	end
+	
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 --> debug
 
@@ -2826,5 +3976,220 @@ DF.DebugMixin = {
 	
 }
 
---doo elsee 
---was doing double loops due to not enought height
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+	
+--> returns if the unit is tapped (gray health color when another player hit the unit first) 
+function DF:IsUnitTapDenied (unitId)
+	return unitId and not UnitPlayerControlled (unitId) and UnitIsTapDenied (unitId)
+end
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+--> pool
+
+do    
+    local get = function(self)
+        local object = tremove(self.notUse, #self.notUse)
+        if (object) then
+            tinsert(self.inUse, object)
+			return object, false
+			
+        else
+            --need to create the new object
+            local newObject = self.newObjectFunc(self, unpack(self.payload))
+            if (newObject) then
+				tinsert(self.inUse, newObject)
+				return newObject, true
+            end
+        end
+	end
+	
+	local get_all_inuse = function(self)
+		return self.inUse;
+	end
+    
+    local release = function(self, object)
+        for i = #self.inUse, 1, -1 do
+            if (self.inUse[i] == object) then
+                tremove(self.inUse, i)
+                tinsert(self.notUse, object)
+                break
+            end
+        end        
+    end
+    
+    local reset = function(self)
+        for i = #self.inUse, 1, -1 do
+            local object = tremove(self.inUse, i)
+            tinsert(self.notUse, object)
+        end        
+	end
+	
+	--only hide objects in use, do not disable them
+		local hide = function(self)
+			for i = #self.inUse, 1, -1 do
+				self.inUse[i]:Hide()
+			end 
+		end
+
+	--only show objects in use, do not enable them
+		local show = function(self)
+			for i = #self.inUse, 1, -1 do
+				self.inUse[i]:Show()
+			end 
+		end	
+
+	--return the amount of objects 
+		local getamount = function(self)
+			return #self.notUse + #self.inUse, #self.notUse, #self.inUse
+		end
+    
+    local poolMixin = {
+		Get = get,
+		GetAllInUse = get_all_inuse,
+        Acquire = get,
+        Release = release,
+        Reset = reset,
+        ReleaseAll = reset,
+		Hide = hide,
+		Show = show,
+		GetAmount = getamount,
+    }
+    
+    function DF:CreatePool(func, ...)
+        local t = {}
+        DetailsFramework:Mixin(t, poolMixin)
+        
+        t.inUse = {}
+        t.notUse = {}
+        t.newObjectFunc = func
+        t.payload = {...}
+        
+        return t
+	end
+	
+	--alias
+	function DF:CreateObjectPool(func, ...)
+		return DF:CreatePool(func, ...)
+	end
+    
+end
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+--> forbidden functions on scripts
+
+	--these are functions which scripts cannot run due to security issues
+	local forbiddenFunction = {
+		--block mail, trades, action house, banks
+		["C_AuctionHouse"] 	= true,
+		["C_Bank"] = true,
+		["C_GuildBank"] = true,
+		["SetSendMailMoney"] = true,
+		["SendMail"]		= true,
+		["SetTradeMoney"]	= true,
+		["AddTradeMoney"]	= true,
+		["PickupTradeMoney"]	= true,
+		["PickupPlayerMoney"]	= true,
+		["AcceptTrade"]		= true,
+
+		--frames
+		["BankFrame"] 		= true,
+		["TradeFrame"]		= true,
+		["GuildBankFrame"] 	= true,
+		["MailFrame"]		= true,
+		["EnumerateFrames"] = true,
+
+		--block run code inside code
+		["RunScript"] = true,
+		["securecall"] = true,
+		["getfenv"] = true,
+		["getfenv"] = true,
+		["loadstring"] = true,
+		["pcall"] = true,
+		["xpcall"] = true,
+		["getglobal"] = true,
+		["setmetatable"] = true,
+		["DevTools_DumpCommand"] = true,
+
+		--avoid creating macros
+		["SetBindingMacro"] = true,
+		["CreateMacro"] = true,
+		["EditMacro"] = true,
+		["hash_SlashCmdList"] = true,
+		["SlashCmdList"] = true,
+
+		--block guild commands
+		["GuildDisband"] = true,
+		["GuildUninvite"] = true,
+
+		--other things
+		["C_GMTicketInfo"] = true,
+
+		--deny messing addons with script support
+		["PlaterDB"] = true,
+		["_detalhes_global"] = true,
+		["WeakAurasSaved"] = true,
+	}
+
+	local C_RestrictedSubFunctions = {
+		["C_GuildInfo"] = {
+			["RemoveFromGuild"] = true,
+		},
+	}
+
+	--not in use, can't find a way to check within the environment handle
+	local addonRestrictedFunctions = {
+		["DetailsFramework"] = {
+			["SetEnvironment"] = true,
+		},
+
+		["Plater"] = {
+			["ImportScriptString"] = true,
+			["db"] = true,
+		},
+
+		["WeakAuras"] = {
+			["Add"] = true,
+			["AddMany"] = true,
+			["Delete"] = true,
+			["NewAura"] = true,
+		},
+	}
+
+    local C_SubFunctionsTable = {}
+    for globalTableName, functionTable in pairs(C_RestrictedSubFunctions) do
+        C_SubFunctionsTable [globalTableName] = {}
+        for functionName, functionObject in pairs(_G[globalTableName]) do
+            if (not functionTable[functionName]) then
+                C_SubFunctionsTable [globalTableName][functionName] = functionObject
+            end
+        end
+    end
+	
+	DF.DefaultSecureScriptEnvironmentHandle = {
+		__index = function (env, key)
+
+			if (forbiddenFunction[key]) then
+				return nil
+
+			elseif (key == "_G") then
+				return env
+				
+			elseif (C_SubFunctionsTable[key]) then
+				return C_SubFunctionsTable[key]
+			end
+
+			return _G[key]
+		end
+	}
+
+	function DF:SetEnvironment(func, environmentHandle)
+		environmentHandle = environmentHandle or DF.DefaultSecureScriptEnvironmentHandle
+
+		local newEnvironment = {}
+
+		setmetatable(newEnvironment, environmentHandle)
+		_G.setfenv(func, newEnvironment)
+	end
+

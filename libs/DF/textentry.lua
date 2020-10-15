@@ -22,13 +22,32 @@ do
 	local metaPrototype = {
 		WidgetType = "textentry",
 		SetHook = DF.SetHook,
+		HasHook = DF.HasHook,
+		ClearHooks = DF.ClearHooks,
 		RunHooksForWidget = DF.RunHooksForWidget,
+
+		dversion = DF.dversion,
 	}
 
-	_G [DF.GlobalWidgetControlNames ["textentry"]] = _G [DF.GlobalWidgetControlNames ["textentry"]] or metaPrototype
+	--check if there's a metaPrototype already existing
+	if (_G[DF.GlobalWidgetControlNames["textentry"]]) then
+		--get the already existing metaPrototype
+		local oldMetaPrototype = _G[DF.GlobalWidgetControlNames ["textentry"]]
+		--check if is older
+		if ( (not oldMetaPrototype.dversion) or (oldMetaPrototype.dversion < DF.dversion) ) then
+			--the version is older them the currently loading one
+			--copy the new values into the old metatable
+			for funcName, _ in pairs(metaPrototype) do
+				oldMetaPrototype[funcName] = metaPrototype[funcName]
+			end
+		end
+	else
+		--first time loading the framework
+		_G[DF.GlobalWidgetControlNames ["textentry"]] = metaPrototype
+	end
 end
 
-local TextEntryMetaFunctions = _G [DF.GlobalWidgetControlNames ["textentry"]]
+local TextEntryMetaFunctions = _G[DF.GlobalWidgetControlNames ["textentry"]]
 DF.TextEntryCounter = DF.TextEntryCounter or 1
 
 ------------------------------------------------------------------------------------------------------------
@@ -226,6 +245,18 @@ DF.TextEntryCounter = DF.TextEntryCounter or 1
 		end
 	end
 
+	function TextEntryMetaFunctions:SetBackdrop(...)
+		return self.editbox:SetBackdrop(...)
+	end
+
+	function TextEntryMetaFunctions:SetBackdropColor(...)
+		return self.editbox:SetBackdropColor(...)
+	end
+
+	function TextEntryMetaFunctions:SetBackdropBorderColor(...)
+		return self.editbox:SetBackdropBorderColor(...)
+	end
+
 --> select all text
 	function TextEntryMetaFunctions:SelectAll()
 		self.editbox:HighlightText()
@@ -302,6 +333,12 @@ DF.TextEntryCounter = DF.TextEntryCounter or 1
 			if (self.editbox.borderframe) then
 				self.editbox.borderframe:SetBackdropColor (.5, .5, .5, .5)
 			end
+		end
+	end
+
+	function TextEntryMetaFunctions:SetCommitFunction(func)
+		if (type(func) == "function") then
+			self.func = func
 		end
 	end
 	
@@ -583,7 +620,7 @@ function DF:NewTextEntry (parent, container, name, member, w, h, func, param1, p
 		TextEntryObject.container = container
 		TextEntryObject.have_tooltip = nil
 
-	TextEntryObject.editbox = CreateFrame ("EditBox", name, parent)
+	TextEntryObject.editbox = CreateFrame ("EditBox", name, parent,"BackdropTemplate")
 	TextEntryObject.editbox:SetSize (232, 20)
 	TextEntryObject.editbox:SetBackdrop ({bgFile = [["Interface\DialogFrame\UI-DialogBox-Background"]], tileSize = 64, tile = true, edgeFile = [[Interface\DialogFrame\UI-DialogBox-Border]], edgeSize = 10, insets = {left = 1, right = 1, top = 0, bottom = 0}})
 	
@@ -1072,36 +1109,99 @@ function TextEntryMetaFunctions:SetAsAutoComplete (poolName, poolTable, shouldOp
 
 end
 
-function DF:NewSpecialLuaEditorEntry (parent, w, h, member, name, nointent)
-	
+local set_speciallua_editor_font_size = function(borderFrame, newSize)
+	local file, size, flags = borderFrame.editbox:GetFont()
+	borderFrame.editbox:SetFont (file, newSize, flags)
+
+	borderFrame.editboxlines:SetFont (file, newSize, flags)
+end
+
+function DF:NewSpecialLuaEditorEntry (parent, w, h, member, name, nointent, showLineNumbers)
+
 	if (name:find ("$parent")) then
 		local parentName = DF.GetParentName (parent)
 		name = name:gsub ("$parent", parentName)
 	end
 	
-	local borderframe = CreateFrame ("Frame", name, parent)
+	local borderframe = CreateFrame ("Frame", name, parent,"BackdropTemplate")
 	borderframe:SetSize (w, h)
 	
 	if (member) then
 		parent [member] = borderframe
 	end
 	
-	local scrollframe = CreateFrame ("ScrollFrame", name, borderframe, "UIPanelScrollFrameTemplate")
-	scrollframe:SetSize (232, 20)
-	scrollframe.editbox = CreateFrame ("editbox", "$parentEditBox", scrollframe)
+	local scrollframe = CreateFrame ("ScrollFrame", name, borderframe, "UIPanelScrollFrameTemplate, BackdropTemplate")
+	local scrollframeNumberLines = CreateFrame ("ScrollFrame", name .. "NumberLines", borderframe, "UIPanelScrollFrameTemplate, BackdropTemplate")
+
+	scrollframe.editbox = CreateFrame ("editbox", "$parentEditBox", scrollframe,"BackdropTemplate")
 	scrollframe.editbox:SetMultiLine (true)
 	scrollframe.editbox:SetAutoFocus (false)
-	scrollframe.editbox:SetSize (232, 20)
-	scrollframe.editbox:SetAllPoints()
-	
 	scrollframe.editbox:SetScript ("OnCursorChanged", _G.ScrollingEdit_OnCursorChanged)
 	scrollframe.editbox:SetScript ("OnEscapePressed", _G.EditBox_ClearFocus)
 	scrollframe.editbox:SetFontObject ("GameFontHighlightSmall")
-	
 	scrollframe:SetScrollChild (scrollframe.editbox)
-	
-	--letters="255"
-	--countInvisibleLetters="true"
+
+	--line number
+	if (showLineNumbers) then
+		scrollframeNumberLines.editbox = CreateFrame ("editbox", "$parentLineNumbers", scrollframeNumberLines, "BackdropTemplate")
+		scrollframeNumberLines.editbox:SetMultiLine (true)
+		scrollframeNumberLines.editbox:SetAutoFocus (false)
+		scrollframeNumberLines.editbox:SetEnabled (false)
+		scrollframeNumberLines.editbox:SetFontObject ("GameFontHighlightSmall")
+		scrollframeNumberLines.editbox:SetJustifyH ("left")
+		scrollframeNumberLines.editbox:SetJustifyV ("top")
+		scrollframeNumberLines.editbox:SetTextColor(.3, .3, .3, .5)
+		scrollframeNumberLines.editbox:SetPoint ("topleft", borderframe, "topleft", 10, -10)
+		scrollframeNumberLines.editbox:SetPoint ("bottomright", borderframe, "bottomright", -30, 10)
+
+		scrollframeNumberLines:SetScrollChild (scrollframeNumberLines.editbox)
+		scrollframeNumberLines:EnableMouseWheel (false)
+
+		for i = 1, 1000 do
+			scrollframeNumberLines.editbox:Insert (i .. "\n")
+		end
+
+		--place the lua code field 20 pixels to the right to make run to the lines scroll
+		scrollframe:SetPoint ("topleft", borderframe, "topleft", 30, -10)
+		scrollframe:SetPoint ("bottomright", borderframe, "bottomright", -10, 10)
+
+		--when the lua code field scrolls, make the lua field scroll too
+		scrollframe:SetScript ("OnVerticalScroll", function (self, offset)
+			scrollframeNumberLines:SetVerticalScroll(scrollframe:GetVerticalScroll())
+			scrollframeNumberLines.ScrollBar:Hide()
+		end)
+
+		--place the number lines scroll in the begining of the editing code space
+		scrollframeNumberLines:SetPoint ("topleft", borderframe, "topleft", 10, -10)
+		scrollframeNumberLines:SetPoint ("bottomright", borderframe, "bottomright", -10, 10)
+
+		scrollframeNumberLines.editbox:SetJustifyH ("left")
+		scrollframeNumberLines.editbox:SetJustifyV ("top")
+
+		scrollframeNumberLines:SetScript ("OnSizeChanged", function (self)
+			scrollframeNumberLines.editbox:SetSize (self:GetSize())
+			scrollframeNumberLines.ScrollBar:Hide()
+		end)
+
+		scrollframeNumberLines.ScrollBar:HookScript("OnShow", function(self)
+			self:Hide()
+		end)
+
+		borderframe.scrollnumberlines = scrollframeNumberLines
+		borderframe.editboxlines = scrollframeNumberLines.editbox
+		borderframe.editboxlines.borderframe = borderframe
+
+		scrollframeNumberLines.ScrollBar:Hide()
+		scrollframeNumberLines:SetBackdrop(nil)
+		scrollframeNumberLines.editbox:SetBackdrop(nil)
+
+	else
+		scrollframe:SetPoint ("topleft", borderframe, "topleft", 10, -10)
+		scrollframe:SetPoint ("bottomright", borderframe, "bottomright", -10, 10)
+		scrollframeNumberLines:SetPoint ("topleft", borderframe, "topleft", 10, -10)
+		scrollframeNumberLines:SetPoint ("bottomright", borderframe, "bottomright", -10, 10)
+		scrollframeNumberLines:Hide()
+	end
 
 	borderframe.SetAsAutoComplete = TextEntryMetaFunctions.SetAsAutoComplete
 	
@@ -1109,10 +1209,6 @@ function DF:NewSpecialLuaEditorEntry (parent, w, h, member, name, nointent)
 		scrollframe.editbox:SetSize (self:GetSize())
 	end)
 	
-	scrollframe:SetPoint ("topleft", borderframe, "topleft", 10, -10)
-	scrollframe:SetPoint ("bottomright", borderframe, "bottomright", -30, 10)
-	
-	scrollframe.editbox:SetMultiLine (true)
 	scrollframe.editbox:SetJustifyH ("left")
 	scrollframe.editbox:SetJustifyV ("top")
 	scrollframe.editbox:SetMaxBytes (1024000)
@@ -1122,6 +1218,7 @@ function DF:NewSpecialLuaEditorEntry (parent, w, h, member, name, nointent)
 	borderframe.SetText = function_settext
 	borderframe.ClearFocus = function_clearfocus
 	borderframe.SetFocus = function_setfocus
+	borderframe.SetTextSize = set_speciallua_editor_font_size
 	
 	borderframe.Enable = TextEntryMetaFunctions.Enable
 	borderframe.Disable = TextEntryMetaFunctions.Disable
@@ -1131,7 +1228,7 @@ function DF:NewSpecialLuaEditorEntry (parent, w, h, member, name, nointent)
 	if (not nointent) then
 		IndentationLib.enable (scrollframe.editbox, nil, 4)
 	end
-	
+
 	borderframe:SetBackdrop ({bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], edgeFile = [[Interface\Tooltips\UI-Tooltip-Border]], 
 		tile = 1, tileSize = 16, edgeSize = 16, insets = {left = 5, right = 5, top = 5, bottom = 5}})
 	
@@ -1175,7 +1272,7 @@ local function bit (x,b)
 end
 
 local function lor (x,y)
-	result = 0
+	local result = 0
 	for p=1,8 do result = result + (((bit(x,p) or bit(y,p)) == true) and 2^(p-1) or 0) end
 	return result
 end

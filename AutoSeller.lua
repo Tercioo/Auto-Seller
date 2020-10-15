@@ -645,7 +645,7 @@ function SYH:ShowPanel (only_load)
 					end
 				end)
 				
-				local frame3D = CreateFrame ("DressUpModel", "SalvageYard3DTransmogFrame", 	SYH.TransmogPanel, "ModelWithControlsTemplate")
+				local frame3D = CreateFrame ("DressUpModel", "SalvageYard3DTransmogFrame", 	SYH.TransmogPanel, "ModelWithControlsTemplate, BackdropTemplate")
 				frame3D:SetSize (260, 300)
 				frame3D:SetFrameStrata ("TOOLTIP")
 				frame3D:SetBackdrop ({bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
@@ -720,7 +720,7 @@ function SYH:ShowPanel (only_load)
 				
 				function SYH.TransmogPanel:GetBlock (i)
 					if (not SYH.TransmogPanel.blocks [i]) then
-						local f = CreateFrame ("frame", nil, SYH.TransmogPanel)
+						local f = CreateFrame ("frame", nil, SYH.TransmogPanel, "BackdropTemplate")
 						f:SetPoint ("topleft", SYH.TransmogPanel, "topleft", x, y)
 						f:SetSize (30, 30)
 						f.texture = f:CreateTexture (nil, overlay)
@@ -881,7 +881,7 @@ function SYH:ShowPanel (only_load)
 				
 				function SYH.PricePanel:GetBlock (i)
 					if (not SYH.PricePanel.blocks [i]) then
-						local f = CreateFrame ("frame", nil, SYH.PricePanel)
+						local f = CreateFrame ("frame", nil, SYH.PricePanel, "BackdropTemplate")
 						f:SetPoint ("topleft", SYH.PricePanel, "topleft", x, y)
 						f:SetSize (45, 45)
 						
