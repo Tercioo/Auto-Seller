@@ -1,4 +1,4 @@
-## Interface: 90001
+## Interface: 90005
 ## Title: Auto Seller
 ## Notes: Help to sell itens for merchants.
 ## SavedVariables: SalvageYardHDB

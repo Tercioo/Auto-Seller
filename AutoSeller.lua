@@ -13,12 +13,9 @@ if (not L) then
 	return
 end
 
---> max item level to sell low level epic items
-local CONST_ITEMLEVEL_SELLEPICLOW_THRESHOLD = 152
-
---> item level range to sell epic items from the current content
-local CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_START = 120
-local CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_END = 130
+--> item level range to sell epic items from the current content (special button above the sell button)
+local CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_START = 183
+local CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_END = 197
 
 local ignore_list = {
 	[44731] = true, --  Bouquet of Ebon Roses
@@ -73,9 +70,11 @@ local is_weapon_model = {
 
 local config_table = {
 	profile = {
-		SellGreen = true,
-		SellGreenMaxLevel = 267,
+		SellGreen = false,
+		SellGreenMaxLevel = 110,
 		SellBlue = false,
+		SellEpic = false,
+		SellEpicGearThreshold = 120,
 		SellVendorThreshold = 500,
 		AHPriceThreshold = 1000,
 		ReverseSell = false,
@@ -112,129 +111,8 @@ local config_table = {
 	},
 }
 local options_table = {
-	name = "Auto Seller",
 	type = "group",
-	args = {
-	 
-		SellGreen = {
-			type = "toggle",
-			name = L["STRING_SELLGREEN"],
-			desc = L["STRING_SELLGREEN_DESC"],
-			order = 1,
-			get = function() return AutoSeller.db.profile.SellGreen end,
-			set = function (self, val) 
-				AutoSeller.db.profile.SellGreen = not AutoSeller.db.profile.SellGreen; 
-				if (AutoSeller.SellPanel) then
-					AutoSeller.SellPanel.SellGreenSwitch:SetValue (AutoSeller.db.profile.SellGreen)
-				end
-			end,
-		},
-		
-		SellBlue = {
-			type = "toggle",
-			name = L["STRING_SELLBLUE"],
-			desc = L["STRING_SELLBLUE_DESC"],
-			order = 2,
-			get = function() return AutoSeller.db.profile.SellBlue end,
-			set = function (self, val) 
-				AutoSeller.db.profile.SellBlue = not AutoSeller.db.profile.SellBlue; 
-				if (AutoSeller.SellPanel) then
-					AutoSeller.SellPanel.SellBlueSwitch:SetValue (AutoSeller.db.profile.SellBlue)
-				end
-			end,
-		},
-	
-		SellGreenRange = {
-			type = "range",
-			name = L["STRING_ITEMLEVEL"], 
-			desc = L["STRING_ITEMLEVEL"],
-			min = 6,
-			max = 851,
-			step = 1,
-			get = function() return AutoSeller.db.profile.SellGreenMaxLevel end,
-			set = function (self, val) 
-				AutoSeller.db.profile.SellGreenMaxLevel = val; 
-				if (AutoSeller.SellPanel) then
-					AutoSeller.SellPanel.GreenIlvlMax.value = val 
-				end
-			end,
-			order = 3,
-		},
-		
-		SellByPrice = {
-			type = "range",
-			name = L["STRING_VENDORGOLD"], 
-			desc = L["STRING_VENDORGOLD_DESC"],
-			min = 15,
-			max = 500,
-			step = 5,
-			get = function() return AutoSeller.db.profile.SellVendorThreshold end,
-			set = function (self, val) 
-				AutoSeller.db.profile.SellVendorThreshold = val; 
-				if (AutoSeller.SellPanel) then
-					AutoSeller.SellPanel.GoldThreshold.value = val 
-				end
-			end,
-			order = 5,
-		},		
-		
-		Inverse = {
-			type = "toggle",
-			name = "Inverse Selling", --TODO: need to add a phrase for this one 
-			desc = L["STRING_ITEMLEVEL_INVERTBUTTONTEXT"],
-			order = 4,
-			get = function() return AutoSeller.db.profile.ReverseSell end,
-			set = function (self, val) 
-				AutoSeller.db.profile.ReverseSell = not AutoSeller.db.profile.ReverseSell; 
-				if (AutoSeller.SellPanel) then
-					AutoSeller:CheckReverse() 
-				end
-			end,
-		},
-		
-		AutoOpenForMerchants = {
-			type = "toggle",
-			name = L["STRING_AUTOOPEN"],
-			desc = L["STRING_AUTOOPEN_DESC"],
-			order = 6,
-			get = function() return AutoSeller.db.profile.AutoOpenForMerchants end,
-			set = function (self, val) 
-				AutoSeller.db.profile.AutoOpenForMerchants = val; 
-			end,
-		},
-		
-		AutoSellGray = {
-			type = "toggle",
-			name = L["STRING_SELLGRAY"],
-			desc = L["STRING_SELLGRAY_DESC"],
-			order = 7,
-			get = function() return AutoSeller.db.profile.AutoSellGray end,
-			set = function (self, val) 
-				AutoSeller.db.profile.AutoSellGray = val; 
-			end,
-		},
-
-		OpenWindow = {
-			type = "execute",
-			func = function() 
-				AutoSeller:ShowPanel()
-			end,
-			desc = "Opens the main window.\n\nYou may use at any time /syh to show it.", --TODO: add phrase for this one
-			name = "Open Sell Window",
-			order = 8,
-		},
-		
-		ConfigBlackList = {
-			type = "execute",
-			func = function() 
-				AutoSeller:ShowPanel()
-				AutoSeller.SellPanel.IgnoreButton:Click()
-			end,
-			desc = "Config the black list to avoid sell some items.\n\nYou may use at any time /syh to popup the sell window.", --TODO: add phrase for this one
-			name = "Config Black List",
-			order = 9,
-		},
-	}
+	args = {},
 }
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -258,8 +136,7 @@ do --> install framework templates
 		onenterbordercolor = {0, 0, 0, 1},
 		textcolor = "silver",
 		textsize = 10,
-	})
-	
+	})	
 end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1007,7 +884,20 @@ function SYH:ShowPanel (only_load)
 		end		
 		
 		SYH.db.profile.MainPanel = SYH.db.profile.MainPanel or {}
-		SYH.SellPanel = SYH:Create1PxPanel (_, 250, 380, "Auto Seller", "AutoSellerFrame", SYH.db.profile.MainPanel)
+		SYH.SellPanel = SYH:Create1PxPanel (_, 250, 400, "", "AutoSellerFrame", SYH.db.profile.MainPanel)
+		DetailsFramework:ApplyStandardBackdrop(SYH.SellPanel)
+		local titleBar = DetailsFramework:CreateTitleBar(SYH.SellPanel, "Auto Seller")
+		titleBar.CloseButton:Hide()
+
+		SYH.SellPanel.Close:ClearAllPoints()
+		SYH.SellPanel.Lock:ClearAllPoints()
+		SYH.SellPanel.Close:SetPoint("right", titleBar, "right", -5, 0)
+		SYH.SellPanel.Lock:SetPoint("right", SYH.SellPanel.Close, "left", -2, 0)
+		SYH.SellPanel.Lock:SetScale(.95)
+
+		SYH.SellPanel.Close:SetAlpha(.5)
+		SYH.SellPanel.Lock:SetAlpha(.5)
+
 		
 		SYH.SellPanel:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
 		SYH.SellPanel:SetBackdropColor (0, 0, 0, 0.5)
@@ -1019,75 +909,203 @@ function SYH:ShowPanel (only_load)
 		if (debugmode) then
 			feedback_func()
 		end
-		
-		local green_switch, green_label = SYH:CreateSwitch (SYH.SellPanel, nil, SYH.db.profile.SellGreen, _, _, _, _, "SellGreenSwitch", _, _, _, _, L["STRING_SELLGREEN"] .. ":", options_checkbox_template, options_text_template)
-		green_switch:SetAsCheckBox()
-		
-		local blue_switch, blue_label = SYH:CreateSwitch (SYH.SellPanel, nil, SYH.db.profile.SellBlue, _, _, _, _, "SellBlueSwitch", _, _, _, _, L["STRING_SELLBLUE"] .. ":", options_checkbox_template, options_text_template)
-		blue_switch:SetAsCheckBox()
-		
-		local green_ilvl_slider, green_ilvl_label = SYH:CreateSlider (SYH.SellPanel, _, _, 6, 851, 1, SYH.db.profile.SellGreenMaxLevel, _, "GreenIlvlMax", _, L["STRING_ITEMLEVEL"] .. ":", options_slider_template, options_text_template)
-		local gold_threshold_slider, gold_threshold_label = SYH:CreateSlider (SYH.SellPanel, _, _, 15, 500, 5, SYH.db.profile.SellVendorThreshold, _, "GoldThreshold", _, L["STRING_VENDORGOLD"] .. ":", options_slider_template, options_text_template)
-		local ahprice_threshold_slider, ahprice_threshold_label = SYH:CreateSlider (SYH.SellPanel, _, _, 1, 3000, 10, SYH.db.profile.AHPriceThreshold, _, "AHPriceThreshold", _, L["STRING_AHPRICE"] .. ":", options_slider_template, options_text_template)
-		
-		local sell_items = SYH:CreateButton (SYH.SellPanel, sell, 120, 20, L["STRING_SELLBUTTONTEXT"], _, _, _, "SellButton", "AutoSellerSellButton", _, options_dropdown_template)
-		
-		--> ~ignore
-		local ignore_button = SYH:CreateButton (SYH.SellPanel, open_ignore, 75, 14, L["STRING_IGNOREBUTTONTEXT"], _, _, _, "IgnoreButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
-		ignore_button.tooltip = function()
-			local s = L["STRING_IGNORE_DESC1"]
-			for itemname, itemlink in pairs (SalvageYardHDB.UserBlackList) do
-				if (type (itemlink) == "boolean") then
-					s = s .. " -" .. itemname .. "\n"
-				else
-				
-					local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo (itemlink)
-					if (itemTexture) then
-						s = s .. " |T" .. (itemTexture or "") .. ":12:12:0:-7:64:64:5:59:5:59|t " .. itemLink .. "\n"
-					else
-						s = s .. " -" .. itemlink .. "\n"
-					end				
-				
-					--s = s .. " -" .. itemlink .. "\n"
-				end
-			end
-			s = s .. L["STRING_IGNORE_DESC2"]
-			for keyword, _ in pairs (SalvageYardHDB.UserBlackListKeyWord) do
-				s = s .. " \"|cFFFFFFFF" .. keyword .. "|r\" "
-			end
-			return s
-		end
-		
-		local auto_sell_gray, auto_sell_gray_label = SYH:CreateSwitch (SYH.SellPanel, nil, SYH.db.profile.AutoSellGray, _, _, _, _, "AutoSellGraySwitch", _, _, _, _, L["STRING_SELLGRAY"] .. ":", options_checkbox_template, options_text_template)
-		auto_sell_gray:SetAsCheckBox()
-		local auto_open, auto_open_label = SYH:CreateSwitch (SYH.SellPanel, nil, SYH.db.profile.AutoOpenForMerchants, _, _, _, _, "AutoOpenForMerchantsSwitch", _, _, _, _, L["STRING_AUTOOPEN"] .. ":", options_checkbox_template, options_text_template)
-		auto_open:SetAsCheckBox()
-		
-		local auto_repair, auto_repair_label = SYH:CreateSwitch (SYH.SellPanel, nil, SYH.db.profile.AutoRepair, _, _, _, _, "AutoRepairSwitch", _, _, _, _, L["STRING_AUTOREPAIR"] .. ":", options_checkbox_template, options_text_template)
-		auto_repair:SetAsCheckBox()
-		local auto_repair_bank, auto_repair_label_bank = SYH:CreateSwitch (SYH.SellPanel, nil, SYH.db.profile.AutoRepair_UseGuildBank, _, _, _, _, "AutoRepairAutoRepair_UseGuildBankSwitch", _, _, _, _, L["STRING_AUTOREPAIR_BANK"] .. ":", options_checkbox_template, options_text_template)
-		auto_repair_bank:SetAsCheckBox()
 
-		local sell_soulbound_switch, sell_soulbound_label = SYH:CreateSwitch (SYH.SellPanel, nil, SYH.SellPanel.ForceSellSoulbound, _, _, _, _, "SellSoulboundSwitch", _, _, _, _, L["STRING_SELLSOULBOUND"] .. ":", options_checkbox_template, options_text_template)
-		sell_soulbound_switch:SetAsCheckBox()
-		local sell_epic_switch, sell_epic_label = SYH:CreateSwitch (SYH.SellPanel, nil, SYH.SellPanel.SellLowLevelEpic, _, _, _, _, "SellEpicSwitch", _, _, _, _, L["STRING_SELLEPIC"] .. ":", options_checkbox_template, options_text_template)
-		sell_epic_switch:SetAsCheckBox()
+		--build the options panel
+		local optionsTable = {
+			--auto sell gray
+			{
+				type = "toggle",
+				get = function() return SYH.db.profile.AutoSellGray end,
+				set = function (self, fixedparam, value) 
+					SYH.db.profile.AutoSellGray = value
+				end,
+				name = L["STRING_SELLGRAY"],
+				desc = L["STRING_SELLGRAY_DESC"],
+			},
+
+			--sell green
+			{
+				type = "toggle",
+				get = function() return SYH.db.profile.SellGreen end,
+				set = function (self, fixedparam, value) 
+					SYH.db.profile.SellGreen = value
+				end,
+				name = L["STRING_SELLGREEN"],
+				desc = L["STRING_SELLGREEN_DESC"],
+			},
+
+			--sell blue
+			{
+				type = "toggle",
+				get = function() return SYH.db.profile.SellBlue end,
+				set = function (self, fixedparam, value) 
+					SYH.db.profile.SellBlue = value
+				end,
+				name = L["STRING_SELLBLUE"],
+				desc = L["STRING_SELLBLUE_DESC"],
+			},
+
+			--sell purple
+			{
+				type = "toggle",
+				get = function() return SYH.db.profile.SellEpic end,
+				set = function (self, fixedparam, value) 
+					SYH.db.profile.SellEpic = value
+				end,
+				name = L["STRING_SELLEPIC"],
+				desc = L["STRING_SELLLOWEPIC_DESC"],
+			},
+
+			--auto open
+			{
+				type = "toggle",
+				get = function() return SYH.db.profile.AutoOpenForMerchants end,
+				set = function (self, fixedparam, value) 
+					SYH.db.profile.AutoOpenForMerchants = value
+				end,
+				name = L["STRING_AUTOOPEN"],
+				desc = L["STRING_AUTOOPEN_DESC"],
+			},
+
+			--auto repair
+			{
+				type = "toggle",
+				get = function() return SYH.db.profile.AutoRepair end,
+				set = function (self, fixedparam, value) 
+					SYH.db.profile.AutoRepair = value
+				end,
+				name = L["STRING_AUTOREPAIR"],
+				desc = L["STRING_AUTOREPAIR_DESC"],
+			},
+
+			--use guild money on repair
+			{
+				type = "toggle",
+				get = function() return SYH.db.profile.AutoRepair_UseGuildBank end,
+				set = function (self, fixedparam, value) 
+					SYH.db.profile.AutoRepair_UseGuildBank = value
+				end,
+				name = L["STRING_AUTOREPAIR_BANK"],
+				desc = L["STRING_AUTOREPAIR_BANK_DESC"],
+			},
+
+			--sell soulbound equipment
+			{
+				type = "toggle",
+				get = function() return SYH.SellPanel.ForceSellSoulbound end,
+				set = function (self, fixedparam, value) 
+					SYH.SellPanel.ForceSellSoulbound = value
+				end,
+				name = L["STRING_SELLSOULBOUND"],
+				desc = L["STRING_SELLSOULBOUND_DESC"],
+			},
+
+			--blank space
+			{type = "blank"},
+
+			--item level slider (green blue)
+			{
+				type = "range",
+				get = function() return SYH.db.profile.SellGreenMaxLevel end,
+				set = function (self, fixedparam, value) 
+					SYH.db.profile.SellGreenMaxLevel = value
+				end,
+				min = 6,
+				max = 300,
+				step = 1,
+				name = L["STRING_ITEMLEVEL"],
+				desc = L["STRING_ITEMLEVEL_DESC2"],
+			},
+
+			--item level slider (purple)
+			{
+				type = "range",
+				get = function() return AutoSeller.db.profile.SellEpicGearThreshold end,
+				set = function (self, fixedparam, value) 
+					AutoSeller.db.profile.SellEpicGearThreshold = value
+				end,
+				min = 6,
+				max = 300,
+				step = 1,
+				name = L["STRING_EPICRANGE"],
+				desc = L["STRING_EPICRANGE_DESC"],
+			},
+
+			--vendor gold slider
+			{
+				type = "range",
+				get = function() return SYH.db.profile.SellVendorThreshold end,
+				set = function (self, fixedparam, value) 
+					SYH.db.profile.SellVendorThreshold = value
+				end,
+				min = 1,
+				max = 500,
+				step = 1,
+				name = L["STRING_VENDORGOLD"],
+				desc = L["STRING_VENDORGOLD_DESC"],
+			},
+
+			--auction price slider
+			{
+				type = "range",
+				get = function() return SYH.db.profile.AHPriceThreshold end,
+				set = function (self, fixedparam, value) 
+					SYH.db.profile.AHPriceThreshold = value
+				end,
+				min = 1,
+				max = 500,
+				step = 1,
+				name = L["STRING_AHPRICE"],
+				desc = L["STRING_AHPRICE_DESC"],
+			},
+		}
+
+		DetailsFramework:BuildMenu (SYH.SellPanel, optionsTable, 5, -35, 400, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template, globalCallback)
+		
+---BUTTONS
+
+		local sell_items = SYH:CreateButton (SYH.SellPanel, sell, 120, 20, L["STRING_SELLBUTTONTEXT"], _, _, _, "SellButton", "AutoSellerSellButton", _, options_dropdown_template)
+
+		--> ~ignore
+			local ignore_button = SYH:CreateButton (SYH.SellPanel, open_ignore, 120, 20, L["STRING_IGNOREBUTTONTEXT"], _, _, _, "IgnoreButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
+			ignore_button.tooltip = function()
+				local s = L["STRING_IGNORE_DESC1"]
+				for itemname, itemlink in pairs (SalvageYardHDB.UserBlackList) do
+					if (type (itemlink) == "boolean") then
+						s = s .. " -" .. itemname .. "\n"
+					else
+					
+						local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, itemSellPrice = GetItemInfo (itemlink)
+						if (itemTexture) then
+							s = s .. " |T" .. (itemTexture or "") .. ":12:12:0:-7:64:64:5:59:5:59|t " .. itemLink .. "\n"
+						else
+							s = s .. " -" .. itemlink .. "\n"
+						end				
+					
+						--s = s .. " -" .. itemlink .. "\n"
+					end
+				end
+				s = s .. L["STRING_IGNORE_DESC2"]
+				for keyword, _ in pairs (SalvageYardHDB.UserBlackListKeyWord) do
+					s = s .. " \"|cFFFFFFFF" .. keyword .. "|r\" "
+				end
+				return s
+			end
 
 		--> ~transmog
-		local transmog_button = SYH:CreateButton (SYH.SellPanel, open_transmog, 75, 14, L["STRING_TRANSMOGBUTTONTEXT"], _, _, _, "TransogButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
+		local transmog_button = SYH:CreateButton (SYH.SellPanel, open_transmog, 120, 20, L["STRING_TRANSMOGBUTTONTEXT"], _, _, _, "TransogButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
 		transmog_button.tooltip = "Show a list of not soulbound equipment on your backpack."
 		
 		--> ~ahprice
-		local ahprices_button = SYH:CreateButton (SYH.SellPanel, open_ah_prices, 75, 14, L["STRING_AHPRICEBUTTONTEXT"], _, _, _, "AhPricesButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
+		local ahprices_button = SYH:CreateButton (SYH.SellPanel, open_ah_prices, 120, 20, L["STRING_AHPRICEBUTTONTEXT"], _, _, _, "AhPricesButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
 		ahprices_button.tooltip = "Show items in your backpack with known auction house value."
 		
 		--> sellepic
-		local sell_epic_gear = SYH:CreateButton (SYH.SellPanel, function() SYH.CanSellHighLevelEpicGear = true; sell() end, 75, 14, "Sell 855 Gear", _, _, _, "SellEpicHearButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
-		sell_epic_gear.tooltip = "Sell epic soulbound equipment up to 855 item level.\n\nThis option is only available if your character has 890 or more item level."
-		sell_epic_gear:Disable()
+		local sell_epic_gear = SYH:CreateButton (SYH.SellPanel, function() SYH.CanSellHighLevelEpicGear = true; sell() end, 120, 20, "Sell 183-197 Gear", _, _, _, "SellEpicHearButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
+		sell_epic_gear.tooltip = "Sells all epic soulbound gear items from 183 to 197 item level."
 		
-		--> ~autosell
-		local autosell_button = SYH:CreateButton (SYH.SellPanel, open_selllist, 75, 14, L["STRING_AUTOSELLBUTTONTEXT"], _, _, _, "AutoSellButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
+		--> ~autosell epic gear of a certain item level
+		local autosell_button = SYH:CreateButton (SYH.SellPanel, open_selllist, 120, 20, L["STRING_AUTOSELLBUTTONTEXT"], _, _, _, "AutoSellButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
 		autosell_button.tooltip = function()
 			local s = L["STRING_SELLBUTTON_DESC1"]
 			for itemname, itemlink in pairs (SalvageYardHDB.UserAutoSellList) do
@@ -1110,128 +1128,26 @@ function SYH:ShowPanel (only_load)
 			return s
 		end
 
-		green_switch.tooltip = L["STRING_SELLGREEN_DESC"]
-		blue_switch.tooltip = L["STRING_SELLBLUE_DESC"]
-		gold_threshold_slider.tooltip = L["STRING_VENDORGOLD_DESC"]
-		ahprice_threshold_slider.tooltip = L["STRING_AHPRICE_DESC"]
-		
-		auto_repair.tooltip = L["STRING_AUTOREPAIR_DESC"]
-		auto_repair_bank.tooltip = "Use gold from the guild bank first, if not enough tries to use your gold."
-		
-		auto_sell_gray.tooltip = L["STRING_SELLGRAY_DESC"]
-		auto_open.tooltip = L["STRING_AUTOOPEN_DESC"]
-		sell_soulbound_switch.tooltip = L["STRING_SELLSOULBOUND_DESC"]
-		sell_epic_switch.tooltip = format (L["STRING_SELLLOWEPIC_DESC"], CONST_ITEMLEVEL_SELLEPICLOW_THRESHOLD+1)
-		
-		green_switch.OnSwitch = function (_, _, value) SYH.db.profile.SellGreen = value end
-		blue_switch.OnSwitch = function (_, _, value) SYH.db.profile.SellBlue = value end
-		auto_sell_gray.OnSwitch = function (_, _, value) SYH.db.profile.AutoSellGray = value end
-		auto_open.OnSwitch = function (_, _, value) SYH.db.profile.AutoOpenForMerchants = value end
-		auto_repair.OnSwitch = function (_, _, value) SYH.db.profile.AutoRepair = value end
-		auto_repair_bank.OnSwitch = function (_, _, value) SYH.db.profile.AutoRepair_UseGuildBank = value end
-		
-		sell_soulbound_switch.OnSwitch = function (_, _, value) 
-			SYH.SellPanel.ForceSellSoulbound = not SYH.SellPanel.ForceSellSoulbound
-		end
-		sell_epic_switch.OnSwitch = function (_, _, value) 
-			SYH.SellPanel.SellLowLevelEpic = not SYH.SellPanel.SellLowLevelEpic
-		end
-		
-		local sell_texture_green = green_ilvl_slider:CreateTexture (nil, "background")
-		local sell_texture_red = green_ilvl_slider:CreateTexture (nil, "background")
-		
-		sell_texture_green:SetColorTexture (.2, 1, .2, 0.2)
-		sell_texture_red:SetColorTexture (1, .2, .2, 0.2)
-		sell_texture_green:SetHeight (11)
-		sell_texture_red:SetHeight (11)
-		green_ilvl_slider.thumb:SetAlpha (1)
-		
-		green_ilvl_slider.OnValueChanged = function (_, _, value) 
-			SYH.db.profile.SellGreenMaxLevel = value 
-			SYH:CheckReverse()
-		end
-		
-		gold_threshold_slider.OnValueChanged = function (_, _, value) 
-			SYH.db.profile.SellVendorThreshold = value
-		end
-		
-		ahprice_threshold_slider.OnValueChanged = function (_, _, value) 
-			SYH.db.profile.AHPriceThreshold = value
-		end
-		
-		function SYH:CheckReverse()
-			if (SYH.db.profile.ReverseSell) then 
-				--> inverted
-				sell_texture_red:SetPoint ("left", green_ilvl_slider.thumb, "center")
-				sell_texture_red:SetPoint ("right", green_ilvl_slider.widget, "right", -3, 0)
-				
-				sell_texture_green:SetPoint ("left", green_ilvl_slider.widget, "left", 3, 0)
-				sell_texture_green:SetPoint ("right", green_ilvl_slider.thumb, "center")
-				
-				green_ilvl_slider.tooltip = L["STRING_ITEMLEVEL_DESC1"]
-				
-				SYH.SellPanel.ReverseButton.widget:GetNormalTexture():SetVertexColor (1, 0, 0, 1)
-				SYH.SellPanel.ReverseButton.widget:GetPushedTexture():SetVertexColor (1, 0, 0, 1)
-				SYH.SellPanel.ReverseButton.widget:GetDisabledTexture():SetVertexColor (1, 0, 0, 1)
-				SYH.SellPanel.ReverseButton.widget:GetHighlightTexture():SetVertexColor (1, 0, 0, 1)
-			else 
-				--> normal
-				sell_texture_red:SetPoint ("left", green_ilvl_slider.widget, "left", 3, 0)
-				sell_texture_red:SetPoint ("right", green_ilvl_slider.thumb, "center")
-				
-				sell_texture_green:SetPoint ("left", green_ilvl_slider.thumb, "center")
-				sell_texture_green:SetPoint ("right", green_ilvl_slider.widget, "right", -3, 0)
-				
-				green_ilvl_slider.tooltip = L["STRING_ITEMLEVEL_DESC2"]
-				
-				SYH.SellPanel.ReverseButton.widget:GetNormalTexture():SetVertexColor (1, 1, 1, 1)
-				SYH.SellPanel.ReverseButton.widget:GetPushedTexture():SetVertexColor (1, 1, 1, 1)
-				SYH.SellPanel.ReverseButton.widget:GetDisabledTexture():SetVertexColor (1, 1, 1, 1)
-				SYH.SellPanel.ReverseButton.widget:GetHighlightTexture():SetVertexColor (1, 1, 1, 1)
-			end
-		end
-		
-		local do_reverse = function()
-			SYH.db.profile.ReverseSell = not SYH.db.profile.ReverseSell
-			SYH:CheckReverse()
-		end
-		local reverse = SYH:CreateButton (SYH.SellPanel, do_reverse, 14, 14, "", _, _, [[Interface\Buttons\UI-RefreshButton]], "ReverseButton", _, _)
-		reverse.tooltip = L["STRING_ITEMLEVEL_INVERTBUTTONTEXT"]
-		
-		SYH:CheckReverse()
-		
-		green_label:SetPoint ("topleft", SYH.SellPanel, "topleft", 7, -40)
-		blue_label:SetPoint ("topleft", SYH.SellPanel, "topleft", 7, -60)
-		auto_sell_gray_label:SetPoint ("topleft", SYH.SellPanel, "topleft", 7, -80)
-		auto_open_label:SetPoint ("topleft", SYH.SellPanel, "topleft", 7, -100)
-		
-		auto_repair_label:SetPoint ("topleft", SYH.SellPanel, "topleft", 7, -120)
-		auto_repair_label_bank:SetPoint ("left", auto_repair, "right", 4, 0)
-		
-		sell_soulbound_label:SetPoint ("topleft", SYH.SellPanel, "topleft", 7, -150)
-		sell_epic_label:SetPoint ("topleft", SYH.SellPanel, "topleft", 7, -170)
-		
-		green_ilvl_label:SetPoint ("topleft", SYH.SellPanel, "topleft", 7, -200)
-		reverse:SetPoint ("left", green_ilvl_slider, "right", 5, 0)
-		gold_threshold_label:SetPoint ("topleft", SYH.SellPanel, "topleft", 7, -220)
-		ahprice_threshold_label:SetPoint ("topleft", SYH.SellPanel, "topleft", 7, -240)
-
-		ignore_button:SetPoint ("topleft", SYH.SellPanel, "topleft", 7, -270)
-		autosell_button:SetPoint ("topleft", SYH.SellPanel, "topleft", 7, -290)
-		sell_epic_gear:SetPoint ("left", autosell_button, "right", 2, 0)
-		
+		--row 1
+		ignore_button:SetPoint ("topleft", SYH.SellPanel, "topleft", 4, -300)
 		transmog_button:SetPoint ("left", ignore_button, "right", 2, 0)
-		ahprices_button:SetPoint ("left", transmog_button, "right", 2, 0)
 
-		--> progress bar and sell button
+		--row 2
+		autosell_button:SetPoint ("topleft", SYH.SellPanel, "topleft", 4, -320)
+		ahprices_button:SetPoint ("left", autosell_button, "right", 2, 0)
+
+		--row 3
+		sell_epic_gear:SetPoint ("top", SYH.SellPanel, "top", 0, -347)
+
+		--row 4
+		sell_items:SetPoint ("center", SYH.SellPanel, "center", 0, 0)
+		sell_items:SetPoint ("top", SYH.SellPanel, "top", 0, -375)
+
+		--> progress bar
 			local progress_bar = SYH:CreateBar (SYH.SellPanel, _, 210, 10, 0, "ProgressBar")
 			progress_bar.shown = false
 			progress_bar:SetPoint ("center", SYH.SellPanel, "center", 0, 0)
 			progress_bar:SetPoint ("top", SYH.SellPanel, "top", 0, -323)
-			
-			sell_items:SetPoint ("center", SYH.SellPanel, "center", 0, 0)
-			sell_items:SetPoint ("top", SYH.SellPanel, "top", 0, -345)
-		----
 		
 		function SYH:IsSoulbound (bag, slot)
 			tooltip_scanner:SetOwner (UIParent, "ANCHOR_NONE")
@@ -1403,6 +1319,9 @@ MerchantFrame:HookScript ("OnHide", function (self)
 	end
 end)
 
+
+
+-- ~sell
 function SYH:Sell (only_gray)
 
 	if (not SYH.SellPanel) then
@@ -1416,12 +1335,17 @@ function SYH:Sell (only_gray)
 	
 	local sell_green = SYH.db.profile.SellGreen
 	local sell_blue = SYH.db.profile.SellBlue
+	local sell_epic = SYH.db.profile.SellEpic
 	
 	local auction_limit = SYH.db.profile.AHPriceThreshold * 10000
+
+	local greenBlueIlevelThreshold = SYH.db.profile.SellGreenMaxLevel
+	local epicItemIlevelThreshold = SYH.db.profile.SellEpicGearThreshold
 	
 	if (only_gray) then
 		sell_green = false
 		sell_blue = false
+		sell_epic = false
 	end
 	--
 	local to_sell = {}
@@ -1434,8 +1358,10 @@ function SYH:Sell (only_gray)
 			local itemId = GetContainerItemID (backpack, slot)
 			if (itemId and not ignore_list [itemId]) then
 				local _, amountOfItems, _, quality, _, _, itemLink = GetContainerItemInfo (backpack, slot)
-				local itemName, itemLink, _, itemLevel, _, itemType, itemSubType, _, itemEquipLoc, _, itemSellPrice = GetItemInfo (itemLink)
-
+				local itemName, _, _, itemLevel, _, itemType, itemSubType, _, itemEquipLoc, _, itemSellPrice = GetItemInfo(itemLink)
+				local effectiveILvl, isPreview, baseILvl = GetDetailedItemLevelInfo(itemLink)
+				itemLevel = effectiveILvl
+				
 				--> gray
 				if (quality == gray_item) then
 					if (not SalvageYardHDB.UserBlackList [itemName]) then
@@ -1451,7 +1377,6 @@ function SYH:Sell (only_gray)
 
 				--> green, blue, epic
 					elseif (itemName and SYH.db.profile.AllowToSell [itemEquipLoc] and not SalvageYardHDB.UserBlackList [itemName]) then
-					
 						local keyword_free = true
 						local low_itemName = string.lower (itemName)
 						for keyword, _ in pairs (SalvageYardHDB.UserBlackListKeyWord) do
@@ -1460,42 +1385,32 @@ function SYH:Sell (only_gray)
 								break
 							end
 						end
-						
+
 						if (keyword_free) then
-							--> green blue
+							--> green blue epic
 							if ((quality == green_item and sell_green) or (quality == blue_item and sell_blue)) then
-								if (SYH.SellPanel.ForceSellSoulbound or not SYH:IsSoulbound (backpack, slot)) then
+								if (SYH.SellPanel.ForceSellSoulbound or not SYH:IsSoulbound(backpack, slot)) then
 									if (itemLevel > 5) then
-										local _, _, _, _, _, _, _, _, _, _, _, upgradeTypeID = strsplit (":", itemLink)
-										if (upgradeTypeID ~= "512") then --> isn't timewarped
-											if (not SYH.db.profile.ReverseSell) then
-												local auction_value = SYH:GetAuctionPrice (itemLink)
-												if (auction_value < auction_limit) then
-													local valor = itemSellPrice
-													if ((itemLevel < SYH.db.profile.SellGreenMaxLevel) or (valor > (SYH.db.profile.SellVendorThreshold * 10000))) then
-														to_sell [#to_sell+1] = {backpack, slot, valor, false, amountOfItems}
-													end
-												else
-													--print ("Can't sell ", itemName, "AH Threshold.", auction_value, " > ", auction_limit)
-												end
-											else	
-												if (SYH:GetAuctionPrice (itemLink) < auction_limit) then
-													local valor = itemSellPrice
-													if ((itemLevel > SYH.db.profile.SellGreenMaxLevel) or (valor > (SYH.db.profile.SellVendorThreshold * 10000))) then
-														to_sell [#to_sell+1] = {backpack, slot, valor, false, amountOfItems}
-													end
-												end
+										local auction_value = SYH:GetAuctionPrice (itemLink)
+										if (auction_value < auction_limit) then
+											local valor = itemSellPrice
+											local case1 = (itemLevel < greenBlueIlevelThreshold) --white, green and blue
+											local case2 = (valor > (SYH.db.profile.SellVendorThreshold * 10000))
+											if (case1 or case2) then
+												to_sell [#to_sell+1] = {backpack, slot, valor, false, amountOfItems}
 											end
+										else
+											--print ("Can't sell ", itemName, "AH Threshold.", auction_value, " > ", auction_limit)
 										end
 									end
 								end
-							--> epic
-							elseif (quality == epic_item) then
-								--low level epics
-								if (SYH.SellPanel.SellLowLevelEpic and itemLevel <= CONST_ITEMLEVEL_SELLEPICLOW_THRESHOLD and itemLevel > 5 and SYH:IsSoulbound (backpack, slot)) then
+
+							elseif (quality == epic_item and sell_epic) then
+								if (itemLevel <= epicItemIlevelThreshold and itemLevel > 5 and SYH:IsSoulbound(backpack, slot)) then
 									to_sell [#to_sell+1] = {backpack, slot, itemSellPrice, false, amountOfItems}
 									
-								elseif (SYH.CanSellHighLevelEpicGear and itemLevel <= CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_END and itemLevel >= CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_START and SYH:IsSoulbound (backpack, slot)) then
+								--from the "shortcut" button to sell epic gear 183-197
+								elseif (SYH.CanSellHighLevelEpicGear and itemLevel <= CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_END and itemLevel >= CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_START and SYH:IsSoulbound(backpack, slot)) then
 									to_sell [#to_sell+1] = {backpack, slot, itemSellPrice, false, amountOfItems}
 								end
 							end

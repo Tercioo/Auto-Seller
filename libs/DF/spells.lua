@@ -135,6 +135,7 @@ DF.CooldownsBySpec = {
 			[30283] = 5, --Shadowfury
 			[6789] = 5, --Mortal Coil (talent)
 			[333889] = 5, --Fel Domination
+			[5484] = 5, --Howl of Terror (talent)
 		},
 		--demonology
 		[266] = {
@@ -162,6 +163,7 @@ DF.CooldownsBySpec = {
 			[6789] = 5, --Mortal Coil (talent)
 			[30283] = 5, --Shadowfury
 			[333889] = 5, --Fel Domination
+			[5484] = 5, --Howl of Terror (talent)
 		},
 	
 	--WARRIOR
@@ -250,8 +252,10 @@ DF.CooldownsBySpec = {
 	--DEMON HUNTER
 		--havoc
 		[577] = {
+
 			[200166] = 1, --Metamorphosis
 			[198589] = 2, --Blur
+
 			[196555] = 2, --Netherwalk (talent)
 			[196718] = 4, --Darkness
 			[188501] = 5, --Spectral Sight
@@ -385,7 +389,6 @@ DF.CooldownsBySpec = {
 		--marksmanship
 		[254] = {
 			[193526] = 1, --Trueshot
-			[260402] = 1, --Double tap
 			[186265] = 2, --Aspect of the Turtle
 			[199483] = 2, --Camouflage (talent)
 			[109304] = 2, --Exhilaration
@@ -536,6 +539,7 @@ DF.CooldownsInfo = {
 	[113858] = {cooldown = 120, duration = 20, talent = 23092, charges = 1, class = "WARLOCK", type = 1}, --Dark Soul: Instability (talent)
 	[30283] = {cooldown = 60, duration = 3, talent = false, charges = 1, class = "WARLOCK", type = 5}, --Shadowfury
 	[333889] = {cooldown = 180, duration = 15, talent = false, charges = 1, class = "WARLOCK", type = 5}, --Fel Domination
+	[5484] = {cooldown = 40, duration = 20, talent = true, charges = 1, class = "WARLOCK", type = 5}, --Howl of Terror (talent)
 	
 	--> shaman
 	[198067] = {cooldown = 150, duration = 30, talent = false, charges = 1, class = "SHAMAN", type = 1}, --Fire Elemental
@@ -633,8 +637,10 @@ DF.CooldownsInfo = {
 	[221562]  = {cooldown = 45, duration = 5, talent = false, charges = 1, class = "DEATHKNIGHT", type = 5}, --Asphyxiate
 	
 	--> demon hunter
+
 	[200166] = {cooldown = 240, duration = 30, talent = false, charges = 1, class = "DEMONHUNTER", type = 1}, --Metamorphosis
 	[198589] = {cooldown = 60, duration = 10, talent = false, charges = 1, class = "DEMONHUNTER", type = 2}, --Blur
+
 	[196555] = {cooldown = 120, duration = 5, talent = 21865, charges = 1, class = "DEMONHUNTER", type = 2}, --Netherwalk (talent)
 	[196718] = {cooldown = 180, duration = 8, talent = false, charges = 1, class = "DEMONHUNTER", type = 4}, --Darkness
 	[187827] = {cooldown = 180, duration = 15, talent = false, charges = 1, class = "DEMONHUNTER", type = 2}, --Metamorphosis
@@ -713,6 +719,7 @@ DF.CrowdControlSpells = {
 	[6789] = "WARLOCK", --Mortal Coil
 	[30283] = "WARLOCK", --Shadowfury
 	[710] = "WARLOCK", --Banish
+	[5484] = "WARLOCK", --Howl of Terror (talent)
 
 	[118] = "MAGE", --Polymorph
 	[61305] = "MAGE", --Polymorph (black cat)
@@ -752,6 +759,7 @@ DF.CrowdControlSpells = {
 	[221562] = "DEATHKNIGHT", --Asphyxiate
 	[108194] = "DEATHKNIGHT", --Asphyxiate (talent)
 	[207167] = "DEATHKNIGHT", --Blinding Sleet
+	[334693] = "DEAHTKNIGHT", --Absolute Zero (legendary)
 	
 	[339] = "DRUID", --Entangling Roots
 	[2637] = "DRUID", --Hibernate
@@ -765,13 +773,16 @@ DF.CrowdControlSpells = {
 	[50259] = "DRUID", --Dazed (from Wild Charge)
 	[209753] = "DRUID", --Cyclone (from pvp talent)
 	[33786] = "DRUID", --Cyclone (from pvp talent - resto druid)
+	[163505] = "DRUID", --Rake
+	[127797] = "DRUID", --Ursol's Vortex
 	
-    [3355] = "HUNTER", --Freezing Trap
-	[3355] = "HUNTER", --Diamond Ice (from pvp talent)
+    [3355] = "HUNTER", --Freezing Trap / Diamond Ice (from pvp talent)
 	[19577] = "HUNTER", --Intimidation
 	[190927] = "HUNTER", --Harpoon
 	[162480] = "HUNTER", --Steel Trap
 	[24394] = "HUNTER", --Intimidation
+	[117405] = "HUNTER", --Binding Shot (trigger)
+	[117526] = "HUNTER", --Binding Shot (triggered)
 	
 	[119381] = "MONK", --Leg Sweep
 	[115078] = "MONK", --Paralysis
@@ -781,6 +792,14 @@ DF.CrowdControlSpells = {
 	
 	[118905] = "SHAMAN", --Static Charge (Capacitor Totem)
 	[51514] = "SHAMAN", --Hex
+	[210873] = "SHAMAN", --Hex (Compy)
+	[211004] = "SHAMAN", --Hex (Spider)
+	[211010] = "SHAMAN", --Hex (Snake)
+	[211015] = "SHAMAN", --Hex (Cockroach)
+	[269352] = "SHAMAN", --Hex (Skeletal Hatchling)
+	[277778] = "SHAMAN", --Hex (Zandalari Tendonripper)
+	[277784] = "SHAMAN", --Hex (Wicker Mongrel)
+	[309328] = "SHAMAN", --Hex (Living Honey)
 	[64695] = "SHAMAN", --Earthgrab (talent)
 	[197214] = "SHAMAN", --Sundering (talent)
 	
@@ -789,6 +808,8 @@ DF.CrowdControlSpells = {
 	[200166] = "DEMONHUNTER", --Metamorphosis
 	[207685] = "DEMONHUNTER", --Sigil of Misery
 	[211881] = "DEMONHUNTER", -- Fel Eruption
+	
+	[331866] = "COVENANT|VENTHYR", --Agent of Chaos (Nadia soulbind)
 }
 
 DF.SpecIds = {
@@ -841,6 +862,69 @@ DF.SpecIds = {
 	[270] = "MONK",
 }
 
+DF.ClassSpecIds = { --private
+	["DEMONHUNTER"] = {
+		[577] = true, 
+		[581] = true,
+	},
+	["DEATHKNIGHT"] = {
+		[250] = true,
+		[251] = true,
+		[252] = true,
+	},
+	["WARRIOR"] = {
+		[71] = true,
+		[72] = true,
+		[73] = true,
+	},
+	["MAGE"] = {
+		[62] = true,
+		[63] = true,
+		[64] = true,
+	},
+	["ROGUE"] = {
+		[259] = true,
+		[260] = true,
+		[261] = true,
+	},
+	["DRUID"] = {
+		[102] = true,
+		[103] = true,
+		[104] = true,
+		[105] = true,
+	},
+	["HUNTER"] = {
+		[253] = true,
+		[254] = true,
+		[255] = true,
+	},
+	["SHAMAN"] = {
+		[262] = true,
+		[263] = true,
+		[264] = true,
+	},
+	["PRIEST"] = {
+		[256] = true,
+		[257] = true,
+		[258] = true,
+	},
+	["WARLOCK"] = {
+		[265] = true,
+		[266] = true,
+		[267] = true,
+	},
+	["PALADIN"] = {
+		[65] = true,
+		[66] = true,
+		[70] = true,
+	},
+	["MONK"] = {
+		[268] = true,
+		[269] = true,
+		[270] = true,
+	},
+}
+
 DF.CooldownToClass = {}
 
 DF.CooldownsAttack = {}
@@ -875,9 +959,7 @@ for specId, cooldownTable in pairs (DF.CooldownsBySpec) do
 		end
 		
 		DF.CooldownToClass [spellId] = DF.SpecIds [spellId]
-
 	end
-	
 end
 
 function DF:FindClassForCooldown (spellId)
@@ -896,6 +978,15 @@ end
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 --consumables
 
+DF.WeaponEnchantIds = {
+	[6188] = true, --shadowcore oil
+	[6190] = true, --embalmer's oil
+	[6201] = true, --weighted
+	[6200] = true, --sharpened
+	[5400] = true, --flametongue
+	[5401] = true, --windfury
+}
+
 DF.FlaskIDs = {
 	--Shadowlands
 	[307185] = true, --Spectral Flask of Power
@@ -910,13 +1001,28 @@ DF.FoodIDs = {
 	--shadowlands tier 1
 	[259454] = 1, -- (agility) Feast of Gluttonous Hedonism
 	[308434] = 1, -- (critical) Phantasmal Souffle and Fries
+	[308397] = 1, --(critical +18) Butterscotch Marinated Ribs
+	[308400] = 1, --(critical +30) Spinefin Souffle and Fries
 	[308488] = 1, -- (haste) Tenebrous Crown Roast Aspic
+	[308404] = 1, -- (haste +18) Cinnamon Bonefish Stew
+	[308405] = 1, -- (haste +30) Tenebrous Crown Roast Aspic
 	[308506] = 1, -- (mastery) Crawler Ravioli with Apple Sauce
+	[308412] = 1, -- (mastery +18) Meaty Apple Dumplings
+	[308413] = 1, -- (mastery +30) Iridescent Ravioli with Apple Sauce
 	[308525] = 1, -- (stamina) Banana Beef Pudding
+	[308414] = 1, -- (stamina +14) Pickled Meat Smoothie
+	[308415] = 1, -- (stamina +22) Banana Beef Pudding
 	[308514] = 1, -- (versatility) Steak a la Mode
-	[327851] = 1, -- (periodicaly heal out of combat) Seraph Tenders
-	[308637] = 1, -- (periodicaly damage) Smothered Shank
+	[308425] = 1, -- (versatility +18) Sweet Silvergill Sausages
+	[308426] = 1, -- (versatility +30) Steak a la Mode
+	[308419] = 1, -- (periodicaly damage) Smothered Shank
 	[327715] = 1, -- (speed) Fried Bonefish
+
+	--feasts
+	[327706] = 2, --strength +20
+	[327707] = 2, --stamina +20
+	[327708] = 2, --intellect +20
+	[327709] = 2, --agility +20
 }
 
 DF.PotionIDs = {
@@ -928,7 +1034,6 @@ DF.PotionIDs = {
 	[307162] = true, --Potion of Spectral Intellect
 	[307494] = true, --Potion of Empowered Exorcisms
 	[307495] = true, --Potion of Phantom Fire
-	[307496] = true, --Potion of Divine Awakening
 	[307161] = true, --Potion of Spiritual Clarity
 	[307496] = true, --Potion of Divine Awakening
 	[307501] = true, --Potion of Specter Swiftness
@@ -944,8 +1049,6 @@ DF.PotionIDs = {
 --	[] = true, --
 
 	[307165] = true, --Spiritual Anti-Venom
-
-
 }
 
 DF.FeastIDs = {
@@ -957,7 +1060,7 @@ DF.FeastIDs = {
 }
 
 DF.RuneIDs = {
-
+	[347901] = true, --Veiled Augmentation
 }
 
 --	/dump UnitAura ("player", 1)

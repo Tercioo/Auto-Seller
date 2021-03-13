@@ -1713,8 +1713,8 @@ function DF:IconPick (callback, close_when_select, param1, param2)
 			self.icon:SetBlendMode ("BLEND")
 		end
 		
-		local backdrop = {bgFile = DF.folder .. "background", tile = true, tileSize = 16,
-		insets = {left = 0, right = 0, top = 0, bottom = 0}, edgeFile = [[Interface\DialogFrame\UI-DialogBox-Border]], edgeSize = 10}
+		local backdrop = {bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tile = true, tileSize = 16,
+		insets = {left = 0, right = 0, top = 0, bottom = 0}, edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1}
 		
 		for i = 0, 9 do 
 			local newcheck = CreateFrame ("Button", "DetailsFrameworkIconPickFrameButton"..(i+1), DF.IconPickFrame, "BackdropTemplate")
@@ -2033,12 +2033,14 @@ function DF:CreateSimplePanel (parent, w, h, title, name, panel_options, db)
 	local close = CreateFrame ("button", name and name .. "CloseButton", title_bar)
 	close:SetFrameLevel (DF.FRAMELEVEL_OVERLAY)
 	close:SetSize (16, 16)
-	close:SetNormalTexture (DF.folder .. "icons")
-	close:SetHighlightTexture (DF.folder .. "icons")
-	close:SetPushedTexture (DF.folder .. "icons")
-	close:GetNormalTexture():SetTexCoord (0, 16/128, 0, 1)
-	close:GetHighlightTexture():SetTexCoord (0, 16/128, 0, 1)
-	close:GetPushedTexture():SetTexCoord (0, 16/128, 0, 1)
+
+	close:SetNormalTexture ([[Interface\GLUES\LOGIN\Glues-CheckBox-Check]])
+	close:SetHighlightTexture ([[Interface\GLUES\LOGIN\Glues-CheckBox-Check]])
+	close:SetPushedTexture ([[Interface\GLUES\LOGIN\Glues-CheckBox-Check]])
+	close:GetNormalTexture():SetDesaturated(true)
+	close:GetHighlightTexture():SetDesaturated(true)
+	close:GetPushedTexture():SetDesaturated(true)
+
 	close:SetAlpha (0.7)
 	close:SetScript ("OnClick", simple_panel_close_click)
 	f.Close = close
@@ -2065,7 +2067,7 @@ function DF:CreateSimplePanel (parent, w, h, title, name, panel_options, db)
 end
 
 local Panel1PxBackdrop = {bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 64,
-edgeFile = DF.folder .. "border_3", edgeSize = 9, insets = {left = 2, right = 2, top = 3, bottom = 3}}
+edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, insets = {left = 2, right = 2, top = 3, bottom = 3}}
 
 local Panel1PxOnClickClose = function (self)
 	self:GetParent():Hide()
@@ -2075,9 +2077,9 @@ local Panel1PxOnToggleLock = function (self)
 		self.IsLocked = false
 		self:SetMovable (true)
 		self:EnableMouse (true)
-		self.Lock:GetNormalTexture():SetTexCoord (32/128, 48/128, 0, 1)
-		self.Lock:GetHighlightTexture():SetTexCoord (32/128, 48/128, 0, 1)
-		self.Lock:GetPushedTexture():SetTexCoord (32/128, 48/128, 0, 1)
+		self.Lock:GetNormalTexture():SetTexCoord (16/64, 32/64, 0, 1)
+		self.Lock:GetHighlightTexture():SetTexCoord (16/32, 32/64, 0, 1)
+		self.Lock:GetPushedTexture():SetTexCoord (16/64, 32/64, 0, 1)
 		if (self.OnUnlock) then
 			self:OnUnlock()
 		end
@@ -2088,9 +2090,9 @@ local Panel1PxOnToggleLock = function (self)
 		self.IsLocked = true
 		self:SetMovable (false)
 		self:EnableMouse (false)
-		self.Lock:GetNormalTexture():SetTexCoord (16/128, 32/128, 0, 1)
-		self.Lock:GetHighlightTexture():SetTexCoord (16/128, 32/128, 0, 1)
-		self.Lock:GetPushedTexture():SetTexCoord (16/128, 32/128, 0, 1)
+		self.Lock:GetNormalTexture():SetTexCoord (0/64, 16/64, 0, 1)
+		self.Lock:GetHighlightTexture():SetTexCoord (0/64, 16/64, 0, 1)
+		self.Lock:GetPushedTexture():SetTexCoord (0/64, 16/64, 0, 1)
 		if (self.OnLock) then
 			self:OnLock()
 		end
@@ -2205,22 +2207,28 @@ function DF:Create1PxPanel (parent, w, h, title, name, config, title_anchor, no_
 	
 	local close = CreateFrame ("button", name and name .. "CloseButton", f, "BackdropTemplate")
 	close:SetSize (16, 16)
-	close:SetNormalTexture (DF.folder .. "icons")
-	close:SetHighlightTexture (DF.folder .. "icons")
-	close:SetPushedTexture (DF.folder .. "icons")
-	close:GetNormalTexture():SetTexCoord (0, 16/128, 0, 1)
-	close:GetHighlightTexture():SetTexCoord (0, 16/128, 0, 1)
-	close:GetPushedTexture():SetTexCoord (0, 16/128, 0, 1)
+	close:SetNormalTexture ([[Interface\GLUES\LOGIN\Glues-CheckBox-Check]])
+	close:SetHighlightTexture ([[Interface\GLUES\LOGIN\Glues-CheckBox-Check]])
+	close:SetPushedTexture ([[Interface\GLUES\LOGIN\Glues-CheckBox-Check]])
+	close:GetNormalTexture():SetDesaturated(true)
+	close:GetHighlightTexture():SetDesaturated(true)
+	close:GetPushedTexture():SetDesaturated(true)
 	close:SetAlpha (0.7)
 	
 	local lock = CreateFrame ("button", name and name .. "LockButton", f, "BackdropTemplate")
 	lock:SetSize (16, 16)
-	lock:SetNormalTexture (DF.folder .. "icons")
-	lock:SetHighlightTexture (DF.folder .. "icons")
-	lock:SetPushedTexture (DF.folder .. "icons")
-	lock:GetNormalTexture():SetTexCoord (32/128, 48/128, 0, 1)
-	lock:GetHighlightTexture():SetTexCoord (32/128, 48/128, 0, 1)
-	lock:GetPushedTexture():SetTexCoord (32/128, 48/128, 0, 1)
+	lock:SetNormalTexture ([[Interface\GLUES\CharacterSelect\Glues-AddOn-Icons]])
+	lock:SetHighlightTexture ([[Interface\GLUES\CharacterSelect\Glues-AddOn-Icons]])
+	lock:SetPushedTexture ([[Interface\GLUES\CharacterSelect\Glues-AddOn-Icons]])
+	lock:GetNormalTexture():SetDesaturated(true)
+	lock:GetHighlightTexture():SetDesaturated(true)
+	lock:GetPushedTexture():SetDesaturated(true)
+	--lock:GetNormalTexture():SetBlendMode("ADD")
+	--lock:GetHighlightTexture():SetBlendMode("ADD")
+	--lock:GetPushedTexture():SetBlendMode("ADD")
+	--lock:GetNormalTexture():SetTexCoord(73/256, 105/256, 64/128, 110/)
+	--lock:GetHighlightTexture():SetTexCoord(73/256, 105/256, 64/128, 110/)
+	--lock:GetPushedTexture():SetTexCoord(73/256, 105/256, 64/128, 110/)
 	lock:SetAlpha (0.7)
 	
 	close:SetPoint ("topright", f, "topright", -3, -3)
@@ -2438,12 +2446,12 @@ function DF:CreateOptionsButton (parent, callback, name)
 	
 	local b = CreateFrame ("button", name, parent, "BackdropTemplate")
 	b:SetSize (14, 14)
-	b:SetNormalTexture (DF.folder .. "icons")
-	b:SetHighlightTexture (DF.folder .. "icons")
-	b:SetPushedTexture (DF.folder .. "icons")
-	b:GetNormalTexture():SetTexCoord (48/128, 64/128, 0, 1)
-	b:GetHighlightTexture():SetTexCoord (48/128, 64/128, 0, 1)
-	b:GetPushedTexture():SetTexCoord (48/128, 64/128, 0, 1)
+	b:SetNormalTexture ([[Interface\GossipFrame\BinderGossipIcon]])
+	b:SetHighlightTexture ([[Interface\GossipFrame\BinderGossipIcon]])
+	b:SetPushedTexture ([[Interface\GossipFrame\BinderGossipIcon]])
+	b:GetNormalTexture():SetDesaturated(true)
+	b:GetHighlightTexture():SetDesaturated(true)
+	b:GetPushedTexture():SetDesaturated(true)
 	b:SetAlpha (0.7)
 	
 	b:SetScript ("OnClick", callback)
@@ -2466,10 +2474,6 @@ end
 function DF:CreateFeedbackButton (parent, callback, name)
 	local b = CreateFrame ("button", name, parent, "BackdropTemplate")
 	b:SetSize (12, 13)
-	b:SetNormalTexture (DF.folder .. "mail")
-	b:SetPushedTexture (DF.folder .. "mail")
-	b:SetHighlightTexture (DF.folder .. "mail")
-	
 	b:SetScript ("OnClick", callback)
 	b:SetScript ("OnEnter", function (self) 
 		GameCooltip2:Reset()
@@ -2479,12 +2483,14 @@ function DF:CreateFeedbackButton (parent, callback, name)
 	b:SetScript ("OnLeave", function (self) 
 		GameCooltip2:Hide()
 	end)
+
+	print("Framework:CreateFeedbackButton() is deprecated.")
 	
 	return b
 end
 
-local backdrop_fb_line = {bgFile = DF.folder .. "background", edgeFile = DF.folder .. "border_3", 
-tile = true, tileSize = 64, edgeSize = 8, insets = {left = 2, right = 2, top = 2, bottom = 2}}
+local backdrop_fb_line = {bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, 
+tile = true, tileSize = 64, insets = {left = 2, right = 2, top = 2, bottom = 2}}
 
 local on_enter_feedback = function (self)
 	self:SetBackdropColor (1, 1, 0, 0.5)
@@ -3877,6 +3883,9 @@ DF.TabContainerFunctions.SelectIndex = function (self, fixedParam, menuIndex)
 	end
 	
 	mainFrame.AllFrames[menuIndex]:Show()
+	if mainFrame.AllFrames[menuIndex].RefreshOptions then
+		mainFrame.AllFrames[menuIndex]:RefreshOptions()
+	end
 	if (mainFrame.ButtonSelectedBorderColor) then
 		mainFrame.AllButtons[menuIndex]:SetBackdropBorderColor (unpack (mainFrame.ButtonSelectedBorderColor))
 	end
@@ -5062,12 +5071,14 @@ function DF:CreateTitleBar (f, titleText)
 	
 	local closeButton = CreateFrame ("button", titleBar:GetName() and titleBar:GetName() .. "CloseButton" or nil, titleBar, "BackdropTemplate")
 	closeButton:SetSize (16, 16)
-	closeButton:SetNormalTexture (DF.folder .. "icons")
-	closeButton:SetHighlightTexture (DF.folder .. "icons")
-	closeButton:SetPushedTexture (DF.folder .. "icons")
-	closeButton:GetNormalTexture():SetTexCoord (0, 16/128, 0, 1)
-	closeButton:GetHighlightTexture():SetTexCoord (0, 16/128, 0, 1)
-	closeButton:GetPushedTexture():SetTexCoord (0, 16/128, 0, 1)
+
+	closeButton:SetNormalTexture ([[Interface\GLUES\LOGIN\Glues-CheckBox-Check]])
+	closeButton:SetHighlightTexture ([[Interface\GLUES\LOGIN\Glues-CheckBox-Check]])
+	closeButton:SetPushedTexture ([[Interface\GLUES\LOGIN\Glues-CheckBox-Check]])
+	closeButton:GetNormalTexture():SetDesaturated(true)
+	closeButton:GetHighlightTexture():SetDesaturated(true)
+	closeButton:GetPushedTexture():SetDesaturated(true)
+
 	closeButton:SetAlpha (0.7)
 	closeButton:SetScript ("OnClick", simple_panel_close_click) --upvalue from this file
 	
@@ -5120,6 +5131,7 @@ DF.IconRowFunctions = {
 			cooldownFrame:SetAllPoints()
 			cooldownFrame:EnableMouse (false)
 			cooldownFrame:SetFrameLevel (newIconFrame:GetFrameLevel()+1)
+			cooldownFrame:SetHideCountdownNumbers (self.options.surpress_blizzard_cd_timer)
 			cooldownFrame.noCooldownCount = self.options.surpress_tulla_omni_cc
 			
 			newIconFrame.CountdownText = cooldownFrame:CreateFontString (nil, "overlay", "GameFontNormal")
@@ -5127,7 +5139,7 @@ DF.IconRowFunctions = {
 			newIconFrame.CountdownText:SetPoint (self.options.text_anchor or "center", newIconFrame, self.options.text_rel_anchor or "center", self.options.text_x_offset or 0, self.options.text_y_offset or 0)
 			newIconFrame.CountdownText:Hide()
 			
-			newIconFrame.StackText = cooldownFrame:CreateFontString (nil, "overlay", "GameFontNormal")
+			newIconFrame.StackText = newIconFrame:CreateFontString (nil, "overlay", "GameFontNormal")
 			--newIconFrame.StackText:SetPoint ("bottomright")
 			newIconFrame.StackText:SetPoint (self.options.stack_text_anchor or "center", newIconFrame, self.options.stack_text_rel_anchor or "bottomright", self.options.stack_text_x_offset or 0, self.options.stack_text_y_offset or 0)
 			newIconFrame.StackText:Hide()
@@ -5213,12 +5225,15 @@ DF.IconRowFunctions = {
 					
 					iconFrame.CountdownText:SetPoint (self.options.text_anchor or "center", iconFrame, self.options.text_rel_anchor or "center", self.options.text_x_offset or 0, self.options.text_y_offset or 0)
 					DF:SetFontSize (iconFrame.CountdownText, self.options.text_size)
+					DF:SetFontFace (iconFrame.CountdownText, self.options.text_font)
+					DF:SetFontOutline (iconFrame.CountdownText, self.options.text_outline)
 					iconFrame.CountdownText:SetText (formattedTime)
-					iconFrame.Cooldown:SetHideCountdownNumbers (true)
+					
 				else
 					iconFrame.CountdownText:Hide()
-					iconFrame.Cooldown:SetHideCountdownNumbers (false)
 				end
+				
+				iconFrame.Cooldown:SetHideCountdownNumbers (self.options.surpress_blizzard_cd_timer)
 			else
 				iconFrame.CountdownText:Hide()
 			end
@@ -5229,6 +5244,8 @@ DF.IconRowFunctions = {
 				iconFrame.Desc:SetTextColor (DF:ParseColors (descText.text_color or self.options.desc_text_color))
 				iconFrame.Desc:SetPoint(self.options.desc_text_anchor or "bottom", iconFrame, self.options.desc_text_rel_anchor or "top", self.options.desc_text_x_offset or 0, self.options.desc_text_y_offset or 2)
 				DF:SetFontSize (iconFrame.Desc, descText.text_size or self.options.desc_text_size)
+				DF:SetFontFace (iconFrame.Desc, self.options.desc_text_font)
+				DF:SetFontOutline (iconFrame.Desc, self.options.desc_text_outline)
 			else
 				iconFrame.Desc:Hide()
 			end
@@ -5239,6 +5256,8 @@ DF.IconRowFunctions = {
 				iconFrame.StackText:SetTextColor (DF:ParseColors (self.options.desc_text_color))
 				iconFrame.StackText:SetPoint (self.options.stack_text_anchor or "center", iconFrame, self.options.stack_text_rel_anchor or "bottomright", self.options.stack_text_x_offset or 0, self.options.stack_text_y_offset or 0)
 				DF:SetFontSize (iconFrame.StackText, self.options.stack_text_size)
+				DF:SetFontFace (iconFrame.StackText, self.options.stack_text_font)
+				DF:SetFontOutline (iconFrame.StackText, self.options.stack_text_outline)
 			else
 				iconFrame.StackText:Hide()
 			end
@@ -5319,6 +5338,8 @@ local default_icon_row_options = {
 	show_text = true,
 	text_color = {1, 1, 1, 1},
 	text_size = 12,
+	text_font = "Arial Narrow",
+	text_outline = "NONE",
 	text_anchor = "center",
 	text_rel_anchor = "center",
 	text_x_offset = 0,
@@ -5326,6 +5347,8 @@ local default_icon_row_options = {
 	desc_text = true,
 	desc_text_color = {1, 1, 1, 1},
 	desc_text_size = 7,
+	desc_text_font = "Arial Narrow",
+	desc_text_outline = "NONE",
 	desc_text_anchor = "bottom",
 	desc_text_rel_anchor = "top",
 	desc_text_x_offset = 0,
@@ -5333,6 +5356,8 @@ local default_icon_row_options = {
 	stack_text = true,
 	stack_text_color = {1, 1, 1, 1},
 	stack_text_size = 10,
+	stack_text_font = "Arial Narrow",
+	stack_text_outline = "NONE",
 	stack_text_anchor = "center",
 	stack_text_rel_anchor = "bottomright",
 	stack_text_x_offset = 0,
@@ -5345,6 +5370,7 @@ local default_icon_row_options = {
 	backdrop_border_color = {0, 0, 0, 1},
 	anchor = {side = 6, x = 2, y = 0},
 	grow_direction = 1, --1 = to right 2 = to left
+	surpress_blizzard_cd_timer = false,
 	surpress_tulla_omni_cc = false,
 }
 
@@ -6054,7 +6080,7 @@ function DF:PassLoadFilters (loadTable, encounterID)
 			canCheckTalents = false
 			
 			for _, specID in ipairs (specsForThisClass) do
-				if (loadTable.spec [specID]) then
+				if (loadTable.spec [specID] or loadTable.spec [specID..""]) then
 					--theres a talent for this class
 					canCheckTalents = true
 					break
@@ -6066,7 +6092,7 @@ function DF:PassLoadFilters (loadTable, encounterID)
 			local specIndex = DetailsFramework.GetSpecialization()
 			if (specIndex) then
 				local specID = DetailsFramework.GetSpecializationInfo (specIndex)
-				if (not loadTable.spec [specID]) then
+				if not specID or (not loadTable.spec [specID] and not loadTable.spec [specID..""]) then
 					return false
 				end
 			else
@@ -6088,7 +6114,7 @@ function DF:PassLoadFilters (loadTable, encounterID)
 		local talentsInUse = DF:GetCharacterTalents (false, true)
 		local hasTalent
 		for talentID, _ in pairs (talentsInUse) do
-			if (loadTable.talent [talentID]) then
+			if talentID and (loadTable.talent [talentID] or loadTable.talent [talentID .. ""]) then
 				hasTalent =  true
 				break
 			end
@@ -6103,7 +6129,7 @@ function DF:PassLoadFilters (loadTable, encounterID)
 		local talentsInUse = DF:GetCharacterPvPTalents (false, true)
 		local hasTalent
 		for talentID, _ in pairs (talentsInUse) do
-			if (loadTable.pvptalent [talentID]) then
+			if talentID and (loadTable.pvptalent [talentID] or loadTable.pvptalent [talentID .. ""]) then
 				hasTalent =  true
 				break
 			end
@@ -6145,7 +6171,7 @@ function DF:PassLoadFilters (loadTable, encounterID)
 		local level, affixes, wasEnergized = C_ChallengeMode.GetActiveKeystoneInfo()
 		local hasAffix = false
 		for _, affixID in ipairs (affixes) do
-			if (loadTable.affix [affixID]) then
+			if affixID and (loadTable.affix [affixID] or loadTable.affix [affixID .. ""]) then
 				hasAffix = true
 				break
 			end
@@ -6259,7 +6285,10 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 			f.OnRadioCheckboxClick = function (self, key, value)
 				--hierarchy: DBKey ["class"] key ["HUNTER"] value TRUE
 				local DBKey = self:GetParent().DBKey
-				f.OptionsTable [DBKey] [key] = value and true or nil
+				f.OptionsTable [DBKey] [key and key .. ""] = value and true or nil
+				if not value then -- cleanup "number" type values
+					f.OptionsTable [DBKey] [key] = nil
+				end
 				f.OnRadioStateChanged (self:GetParent(), f.OptionsTable [DBKey])
 				f.RunCallback()
 			end
@@ -6290,7 +6319,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 					name = specName,
 					set = f.OnRadioCheckboxClick,
 					param = specID,
-					get = function() return f.OptionsTable.spec [specID] end,
+					get = function() return f.OptionsTable.spec [specID] or f.OptionsTable.spec [specID..""] end,
 					texture = specIcon,
 				})
 			end
@@ -6321,7 +6350,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 					name = talentTable.Name, 
 					set = f.OnRadioCheckboxClick,
 					param = talentTable.ID,
-					get = function() return f.OptionsTable.talent [talentTable.ID] end,
+					get = function() return f.OptionsTable.talent [talentTable.ID] or f.OptionsTable.talent [talentTable.ID .. ""] end,
 					texture = talentTable.Texture,
 				})
 			end
@@ -6387,7 +6416,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 						
 						GameCooltip2:SetColor (1, 0.5, 0.5, 0.5, 0)
 						
-						local preset2_backdrop = {bgFile = DF.folder .. "background", edgeFile = [[Interface\Buttons\WHITE8X8]], tile = true, edgeSize = 1, tileSize = 16, insets = {left = 0, right = 0, top = 0, bottom = 0}}
+						local preset2_backdrop = {bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], edgeFile = [[Interface\Buttons\WHITE8X8]], tile = true, edgeSize = 1, tileSize = 16, insets = {left = 0, right = 0, top = 0, bottom = 0}}
 						local gray_table = {0.37, 0.37, 0.37, 0.95}
 						local black_table = {0.2, 0.2, 0.2, 1}
 						GameCooltip2:SetBackdrop (1, preset2_backdrop, gray_table, black_table)
@@ -6419,7 +6448,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 					name = talentTable.Name, 
 					set = f.OnRadioCheckboxClick,
 					param = talentTable.ID,
-					get = function() return f.OptionsTable.pvptalent [talentTable.ID] end,
+					get = function() return f.OptionsTable.pvptalent [talentTable.ID] or f.OptionsTable.pvptalent [talentTable.ID .. ""] end,
 					texture = talentTable.Texture,
 				})
 			end
@@ -6485,7 +6514,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 						
 						GameCooltip2:SetColor (1, 0.5, 0.5, 0.5, 0)
 						
-						local preset2_backdrop = {bgFile = DF.folder .. "background", edgeFile = [[Interface\Buttons\WHITE8X8]], tile = true, edgeSize = 1, tileSize = 16, insets = {left = 0, right = 0, top = 0, bottom = 0}}
+						local preset2_backdrop = {edgeFile = [[Interface\Buttons\WHITE8X8]], edgeFile = [[Interface\Buttons\WHITE8X8]], tile = true, edgeSize = 1, tileSize = 16, insets = {left = 0, right = 0, top = 0, bottom = 0}}
 						local gray_table = {0.37, 0.37, 0.37, 0.95}
 						local black_table = {0.2, 0.2, 0.2, 1}
 						GameCooltip2:SetBackdrop (1, preset2_backdrop, gray_table, black_table)
@@ -6517,7 +6546,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 					name = groupTable.Name, 
 					set = f.OnRadioCheckboxClick,
 					param = groupTable.ID,
-					get = function() return f.OptionsTable.group [groupTable.ID] end,
+					get = function() return f.OptionsTable.group [groupTable.ID] or f.OptionsTable.group [groupTable.ID .. ""] end,
 				})
 			end
 			local groupTypesGroup = DF:CreateRadionGroup (f, groupTypes, name, {width = 200, height = 200, title = "Group Types"})
@@ -6532,7 +6561,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 					name = roleTable.Texture .. " " .. roleTable.Name, 
 					set = f.OnRadioCheckboxClick,
 					param = roleTable.ID,
-					get = function() return f.OptionsTable.role [roleTable.ID] end,
+					get = function() return f.OptionsTable.role [roleTable.ID] or f.OptionsTable.role [roleTable.ID .. ""] end,
 				})
 			end
 			local roleTypesGroup = DF:CreateRadionGroup (f, roleTypes, name, {width = 200, height = 200, title = "Role Types"})
@@ -6549,7 +6578,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 						name = affixName, 
 						set = f.OnRadioCheckboxClick,
 						param = i, 
-						get = function() return f.OptionsTable.affix [i] end,
+						get = function() return f.OptionsTable.affix [i] or f.OptionsTable.affix [i .. ""] end,
 						texture = texture,
 					})
 				end
@@ -6617,7 +6646,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 						name = talentTable.Name, 
 						set = DetailsFrameworkLoadConditionsPanel.OnRadioCheckboxClick,
 						param = talentTable.ID,
-						get = function() return DetailsFrameworkLoadConditionsPanel.OptionsTable.talent [talentTable.ID] end,
+						get = function() return DetailsFrameworkLoadConditionsPanel.OptionsTable.talent [talentTable.ID] or DetailsFrameworkLoadConditionsPanel.OptionsTable.talent [talentTable.ID .. ""] end,
 						texture = talentTable.Texture,
 					})
 				end
@@ -6631,7 +6660,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 						name = talentTable.Name, 
 						set = DetailsFrameworkLoadConditionsPanel.OnRadioCheckboxClick,
 						param = talentTable.ID,
-						get = function() return DetailsFrameworkLoadConditionsPanel.OptionsTable.pvptalent [talentTable.ID] end,
+						get = function() return DetailsFrameworkLoadConditionsPanel.OptionsTable.pvptalent [talentTable.ID] or DetailsFrameworkLoadConditionsPanel.OptionsTable.pvptalent [talentTable.ID .. ""] end,
 						texture = talentTable.Texture,
 					})
 				end
@@ -7276,6 +7305,11 @@ DF.StatusBarFunctions = {
 	end
 
 	healthBarMetaFunctions.UpdateHealth = function (self)
+		-- update max health regardless to avoid weird wrong values on UpdateMaxHealth sometimes
+		-- local maxHealth = UnitHealthMax (self.displayedUnit)
+		-- self:SetMinMaxValues (0, maxHealth)
+		-- self.currentHealthMax = maxHealth
+		
 		local health = UnitHealth (self.displayedUnit)
 		self.currentHealth = health
 		PixelUtil.SetStatusBarValue (self, health)
@@ -9192,7 +9226,7 @@ function DF:CreateUnitFrame (parent, name, unitFrameSettingsOverride, healthBarS
 	
 	--> overlay frame (widgets that need to stay above the unit frame)
 	local overlayFrame = CreateFrame ("frame", "$parentOverlayFrame", f, "BackdropTemplate")
-	borderFrame:SetFrameLevel (f:GetFrameLevel() + 6)
+	overlayFrame:SetFrameLevel (f:GetFrameLevel() + 6)
 	f.overlayFrame = overlayFrame
 	
 	--> unit frame layers
@@ -9995,4 +10029,237 @@ function DF:SetPointOffsets(frame, xOffset, yOffset)
 		frame:SetPoint(anchor1, anchorTo, anchor2, xOffset, yOffset)
 	end
 end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--> list box
+
+DF.ListboxFunctions = {
+	scrollRefresh = function(self, data, offset, totalLines)
+		for i = 1, totalLines do
+			local index = i + offset
+			local lineData = data[index] --what is shown in the textentries, array
+
+			if (lineData) then
+				local line = self:GetLine(i)
+				line.dataIndex = index
+				line.deleteButton:SetClickFunction(DF.ListboxFunctions.deleteEntry, data, index)
+				line.indexText:SetText(index)
+
+				local amountEntries = #lineData
+				for o = 1, amountEntries do
+					--data
+					local textEntry = line.widgets[o]
+					textEntry.dataTable = lineData
+					textEntry.dataTableIndex = o
+					local text = lineData[o]
+					textEntry:SetText(text)
+				end
+			end
+		end
+	end,
+
+	addEntry = function(self)
+		local frameCanvas = self:GetParent()
+		local data = frameCanvas.data
+		local newEntry = {}
+		for i = 1, frameCanvas.headerLength do
+			tinsert(newEntry, "")
+		end
+		tinsert(data, newEntry)
+		frameCanvas.scrollBox:Refresh()
+	end,
+
+	deleteEntry = function(self, button, data, index)
+		tremove(data, index)
+		--get the line, get the scrollframe
+		self:GetParent():GetParent():Refresh()
+	end,
+
+	createScrollLine = function(self, index)
+		local listBox = self:GetParent()
+		local line = CreateFrame("frame", self:GetName().. "line_" .. index, self, "BackdropTemplate")
+
+		line:SetPoint("topleft", self, "topleft", 1, -((index-1)*(self.lineHeight+1)) - 1)
+		line:SetSize(self:GetWidth() - 28, self.lineHeight) -- -28 space for the scrollbar
+
+		local options = listBox.options
+		line:SetBackdrop(options.line_backdrop)
+		line:SetBackdropColor(unpack(options.line_backdrop_color))
+		line:SetBackdropBorderColor(unpack(options.line_backdrop_border_color))
+
+		DF:Mixin(line, DF.HeaderFunctions)
+
+		line.widgets = {}
+
+		for i = 1, (listBox.headerLength+2) do --+2 to add the delete button and index
+			local headerColumn = listBox.headerTable[i]
+
+			if (headerColumn.isDelete) then
+				local deleteButton = DF:CreateButton(line, DF.ListboxFunctions.deleteEntry, 20, self.lineHeight, "X", listBox.data, index, nil, nil, nil, nil, DF:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE"), DF:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
+				line.deleteButton = deleteButton
+				line:AddFrameToHeaderAlignment(deleteButton)
+
+			elseif (headerColumn.isIndex) then
+				local indexText = DF:CreateLabel(line)
+				line.indexText = indexText
+				line:AddFrameToHeaderAlignment(indexText)
+
+			elseif (headerColumn.text) then
+				local template = DF.table.copy({}, DF:GetTemplate("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+				template.backdropcolor = {.1, .1, .1, .7}
+				template.backdropbordercolor = {.2, .2, .2, .6}
+
+				local textEntry = DF:CreateTextEntry(line, function()end, headerColumn.width, self.lineHeight, nil, nil, nil, template)
+				textEntry:SetHook("OnEditFocusGained", function() textEntry:HighlightText(0) end)
+				textEntry:SetHook("OnEditFocusLost", function()
+					textEntry:HighlightText(0, 0)
+					local text = textEntry.text
+					local dataTable = textEntry.dataTable
+					dataTable[textEntry.dataTableIndex] = text
+				end)
+				tinsert(line.widgets, textEntry)
+				line:AddFrameToHeaderAlignment(textEntry)
+			end
+		end
+
+		line:AlignWithHeader(listBox.header, "left")
+		return line
+	end,
+
+	SetData = function(frameCanvas, newData)
+		if (type(newData) ~= "table") then
+			error("ListBox:SetData received an invalid newData on parameter 2.")
+			return
+		end
+
+		frameCanvas.data = newData
+		frameCanvas.scrollBox:SetData(newData)
+		frameCanvas.scrollBox:Refresh()
+	end,
+}
+
+local listbox_options = {
+	width = 800,
+	height = 600,
+	auto_width = true,
+	line_height = 16,
+	line_backdrop = {bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true},
+	line_backdrop_color = {.1, .1, .1, .6},
+	line_backdrop_border_color = {0, 0, 0, .5},
+}
+
+--@parent: parent frame
+--@name: name of the frame to be created
+--@data: table with current data to fill the column, this table are also used for values changed or added
+--@options: table with options to overwrite the default setting from 'listbox_options'
+--@header: a table to create a header widget
+--@header_options: a table with options to overwrite the default header options
+function DF:CreateListBox(parent, name, data, options, headerTable, headerOptions)
+
+	options = options or {}
+	name = name or "ListboxUnamed_" .. (math.random(100000, 1000000))
+
+	--canvas
+	local frameCanvas = CreateFrame("scrollframe", name, parent, "BackdropTemplate")
+	DF:Mixin(frameCanvas, DF.ListboxFunctions)
+	DF:Mixin(frameCanvas, DF.OptionsFunctions)
+	DF:Mixin(frameCanvas, DF.LayoutFrame)
+	frameCanvas.headerTable = headerTable
+
+	if (not data or type(data) ~= "table") then
+		error("CreateListBox() parameter 3 'data' must be a table.")
+	end
+
+	frameCanvas.data = data
+	frameCanvas.lines = {}
+	DF:ApplyStandardBackdrop(frameCanvas)
+	frameCanvas:BuildOptionsTable(listbox_options, options)
+
+	--> header
+		--check for default values in the header
+		headerTable = headerTable or {
+			{text = "Spell Id", width = 70},
+			{text = "Spell Name", width = 70},
+		}
+		headerOptions = headerOptions or {
+			padding = 2,
+		}
+
+		--each header is an entry in the data, if the header has 4 indexes the data has sub tables with 4 indexes as well
+		frameCanvas.headerLength = #headerTable
+
+		--add the detele line column into the header frame
+		tinsert(headerTable, 1, {text = "#", width = 20, isIndex = true}) --isDelete signals the createScrollLine() to make the delete button for the line 
+		tinsert(headerTable, {text = "Delete", width = 50, isDelete = true}) --isDelete signals the createScrollLine() to make the delete button for the line 
+		
+		local header = DF:CreateHeader(frameCanvas, headerTable, headerOptions)
+		--set the header point
+		header:SetPoint("topleft", frameCanvas, "topleft", 5, -5)
+		frameCanvas.header = header
+
+	--> auto size
+		if (frameCanvas.options.auto_width) then
+			local width = 10 --padding 5 on each side
+			width = width + 20 --scrollbar reserved space
+			local headerPadding = headerOptions.padding or 0
+
+			for _, header in pairs(headerTable) do
+				if (header.width) then
+					width = width + header.width + headerPadding
+				end
+			end
+
+			frameCanvas.options.width = width
+			frameCanvas:SetWidth(width)
+		end
+
+		local width = frameCanvas.options.width
+		local height = frameCanvas.options.height
+
+		frameCanvas:SetSize(frameCanvas.options.width, height)
+
+	--> scroll frame
+		local lineHeight = frameCanvas.options.line_height
+		--calc the size of the space occupied by the add button, header etc
+		local lineAmount = floor((height - 60) / lineHeight)
+
+		-- -12 is padding: 5 on top, 7 bottom, 2 header scrollbar blank space | -24 to leave space to the add button
+		local scrollBox = DF:CreateScrollBox(frameCanvas, "$parentScrollbox", frameCanvas.scrollRefresh, data, width-4, height - header:GetHeight() - 12 - 24, lineAmount, lineHeight)
+		scrollBox:SetPoint("topleft", header, "bottomleft", 0, -2)
+		scrollBox:SetPoint("topright", header, "bottomright", 0, -2) -- -20 for the scrollbar
+		DF:ReskinSlider(scrollBox)
+		scrollBox.lineHeight = lineHeight
+		scrollBox.lineAmount = lineAmount
+		frameCanvas.scrollBox = scrollBox
+
+		for i = 1, lineAmount do
+			scrollBox:CreateLine(frameCanvas.createScrollLine)
+		end
+
+		scrollBox:Refresh()
+
+	--> add line button
+		local addLineButton = DF:CreateButton(frameCanvas, DF.ListboxFunctions.addEntry, 80, 20, "Add", nil, nil, nil, nil, nil, nil, DF:GetTemplate("button", "OPTIONS_BUTTON_TEMPLATE"), DF:GetTemplate("font", "ORANGE_FONT_TEMPLATE"))
+		addLineButton:SetPoint("topleft", scrollBox, "bottomleft", 0, -4)
+
+	return frameCanvas
+end
+
+--[=[ -- test case
+
+    local pframe = ListBoxTest or CreateFrame("frame", "ListBoxTest", UIParent)
+    pframe:SetSize(900, 700)
+    pframe:SetPoint("left")
+    
+    local data = {{254154, "spell name 1", 45}, {299154, "spell name 2", 05}, {354154, "spell name 3", 99}}
+    local headerTable = {
+        {text = "spell id", width = 120},
+        {text = "spell name", width = 180},
+        {text = "number", width = 90},
+    }
+    
+    local listbox = DetailsFramework:CreateListBox(pframe, "$parentlistbox", data, nil, headerTable, nil)
+    listbox:SetPoint("topleft", pframe, "topleft", 10, -10)
+
+--]=]
 
