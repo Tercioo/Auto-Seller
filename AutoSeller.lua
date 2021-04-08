@@ -1,6 +1,5 @@
 
 -- localization
-
 --todo: make the CONSTS below to be inside the profile and configurable by the user
 
 local _
