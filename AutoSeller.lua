@@ -15,6 +15,11 @@ end
 --> item level range to sell epic items from the current content (special button above the sell button)
 local CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_START = 183
 local CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_END = 197
+--BCC
+if (DetailsFramework.IsTBCWow()) then
+	CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_START = 10
+	CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_END = 62
+end
 
 local ignore_list = {
 	[44731] = true, --  Bouquet of Ebon Roses
@@ -70,10 +75,10 @@ local is_weapon_model = {
 local config_table = {
 	profile = {
 		SellGreen = false,
-		SellGreenMaxLevel = 110,
+		SellGreenMaxLevel = DetailsFramework.IsTBCWow() and 55 or 110,
 		SellBlue = false,
 		SellEpic = false,
-		SellEpicGearThreshold = 120,
+		SellEpicGearThreshold = DetailsFramework.IsTBCWow() and 55 or 120,
 		SellVendorThreshold = 500,
 		AHPriceThreshold = 1000,
 		ReverseSell = false,
@@ -1100,8 +1105,14 @@ function SYH:ShowPanel (only_load)
 		ahprices_button.tooltip = "Show items in your backpack with known auction house value."
 		
 		--> sellepic
-		local sell_epic_gear = SYH:CreateButton (SYH.SellPanel, function() SYH.CanSellHighLevelEpicGear = true; sell() end, 120, 20, "Sell 183-197 Gear", _, _, _, "SellEpicHearButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
-		sell_epic_gear.tooltip = "Sells all epic soulbound gear items from 183 to 197 item level."
+		local sell_epic_gear
+		if (DetailsFramework.IsTBCWow()) then
+			sell_epic_gear = SYH:CreateButton (SYH.SellPanel, function() SYH.CanSellHighLevelEpicGear = true; sell() end, 120, 20, "Sell 10 - 62 Epic Soulbound Gear", _, _, _, "SellEpicHearButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
+			sell_epic_gear.tooltip = "Sells all epic soulbound gear items from 10 to 62 item level."
+		else
+			sell_epic_gear = SYH:CreateButton (SYH.SellPanel, function() SYH.CanSellHighLevelEpicGear = true; sell() end, 120, 20, "Sell 183-197 Gear", _, _, _, "SellEpicHearButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
+			sell_epic_gear.tooltip = "Sells all epic soulbound gear items from 183 to 197 item level."
+		end
 		
 		--> ~autosell epic gear of a certain item level
 		local autosell_button = SYH:CreateButton (SYH.SellPanel, open_selllist, 120, 20, L["STRING_AUTOSELLBUTTONTEXT"], _, _, _, "AutoSellButton", _, _, SYH:GetTemplate ("button", "AUTOSELLER_MAINWINDOW_BUTTON_TEMPLATE"))
@@ -1183,10 +1194,7 @@ function SYH:ShowPanel (only_load)
 	end
 	
 	SYH.SellPanel:Show()
-	
-	if (GetAverageItemLevel() >= 890) then
-		SYH.SellPanel.SellEpicHearButton:Enable()
-	end
+	SYH.SellPanel.SellEpicHearButton:Enable()
 
 	if (only_load) then
 		SYH.SellPanel:Hide()
@@ -1199,7 +1207,7 @@ local USE_GUILD_BANK = true
 local auto_repair = function()
 	
 	local repairAllCost, canRepair = GetRepairAllCost()
-	local hasGuild, canGuildRepair = IsInGuild(), CanGuildBankRepair()
+	local hasGuild, canGuildRepair = IsInGuild(), CanGuildBankRepair and CanGuildBankRepair()
 	
 	--> the repair button from guild bank is enabled
 	if (hasGuild and canGuildRepair and SYH.db.profile.AutoRepair_UseGuildBank) then
@@ -1304,7 +1312,7 @@ MerchantFrame:HookScript ("OnShow", function (self)
 		
 	end
 	
-	--auto repait stuff
+	--auto repair stuff
 	if (SYH.db.profile.AutoRepair) then
 		if (CanMerchantRepair()) then
 			auto_repair()
@@ -1408,7 +1416,7 @@ function SYH:Sell (only_gray)
 								if (itemLevel <= epicItemIlevelThreshold and itemLevel > 5 and SYH:IsSoulbound(backpack, slot)) then
 									to_sell [#to_sell+1] = {backpack, slot, itemSellPrice, false, amountOfItems}
 									
-								--from the "shortcut" button to sell epic gear 183-197
+								--from the "shortcut" button to sell epic gear 183-197 Retail | 10 - 62 BCC
 								elseif (SYH.CanSellHighLevelEpicGear and itemLevel <= CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_END and itemLevel >= CONST_ITEMLEVEL_SELLEPICCURRENT_THRESHOLD_START and SYH:IsSoulbound(backpack, slot)) then
 									to_sell [#to_sell+1] = {backpack, slot, itemSellPrice, false, amountOfItems}
 								end
