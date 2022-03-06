@@ -1982,32 +1982,88 @@ local SimplePanel_frame_backdrop_border_color = {0, 0, 0, 1}
 
 --with_label was making the frame stay in place while its parent moves
 --the slider was anchoring to with_label and here here were anchoring the slider again
-function DF:CreateScaleBar (frame, config)
-	local scaleBar, text = DF:CreateSlider (frame, 120, 14, 0.6, 1.6, 0.1, config.scale, true, "ScaleBar", nil, "Scale:", DF:GetTemplate ("slider", "OPTIONS_SLIDER_TEMPLATE"), DF:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
+function DF:CreateScaleBar(frame, config) --~scale
+	local scaleBar, text = DF:CreateSlider(frame, 120, 14, 0.6, 1.6, 0.1, config.scale, true, "ScaleBar", nil, "Scale:", DF:GetTemplate ("slider", "OPTIONS_SLIDER_TEMPLATE"), DF:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
 	scaleBar.thumb:SetWidth(24)
 	scaleBar:SetValueStep(0.1)
-	scaleBar:SetObeyStepOnDrag()
+	scaleBar:SetObeyStepOnDrag(true)
 	scaleBar.mouseDown = false
+	rawset(scaleBar, "lockdown", true)
 
-	text:SetPoint ("topleft", frame, "topleft", 12, -7)
-	scaleBar:SetFrameLevel (DF.FRAMELEVEL_OVERLAY)
-	scaleBar.OnValueChanged = function (_, _, value)
+	--create a custom editbox to enter the scale from text
+	local editbox = CreateFrame("editbox", nil, scaleBar.widget, "BackdropTemplate")
+	editbox:SetSize(40, 20)
+	editbox:SetJustifyH("center")
+	editbox:SetBackdrop({bgFile = [[Interface\ACHIEVEMENTFRAME\UI-GuildAchievement-Parchment-Horizontal-Desaturated]],
+	edgeFile = [[Interface\Buttons\WHITE8X8]],
+	tile = true, edgeSize = 1, tileSize = 64})
+	editbox:SetFontObject("GameFontHighlightSmall")
+	editbox:SetBackdropColor(0, 0, 0, 1)
+
+	editbox:SetScript("OnEditFocusGained", function()
+	end)
+
+	editbox:SetScript("OnEnterPressed", function()
+		editbox:ClearFocus()
+		editbox:Hide()
+		local text = editbox:GetText()
+		local newScale = DF.TextToFloor(text)
+
+		if (newScale) then
+			config.scale = newScale
+			scaleBar:SetValue(newScale)
+			frame:SetScale(newScale)
+			editbox.defaultValue = newScale
+		end
+	end)
+	
+	editbox:SetScript("OnEscapePressed", function()
+		editbox:ClearFocus()
+		editbox:Hide()
+		editbox:SetText(editbox.defaultValue)
+	end)
+
+	scaleBar:SetScript("OnMouseDown", function(_, mouseButton)
+		if (mouseButton == "RightButton") then
+			editbox:Show()
+			editbox:SetAllPoints()
+			editbox:SetText(config.scale)
+			editbox:SetFocus(true)
+			editbox.defaultValue = config.scale
+
+		elseif (mouseButton == "LeftButton") then
+			scaleBar.mouseDown  = true
+		end
+	end)
+
+	scaleBar:SetScript("OnMouseUp", function(_, mouseButton)
+		if (mouseButton == "LeftButton") then
+			scaleBar.mouseDown  = false
+			frame:SetScale(config.scale)
+			editbox.defaultValue = config.scale
+		end
+	end)
+
+	text:SetPoint("topleft", frame, "topleft", 12, -7)
+	scaleBar:SetFrameLevel(DF.FRAMELEVEL_OVERLAY)
+	scaleBar.OnValueChanged = function(_, _, value)
 		if (scaleBar.mouseDown) then
 			config.scale = value
 		end
 	end
+	
+	scaleBar:SetAlpha(0.70)
+	editbox.defaultValue = config.scale
+	editbox:SetFocus(false)
+	editbox:SetAutoFocus(false)
+	editbox:ClearFocus()
 
-	scaleBar:SetHook ("OnMouseDown", function()
-		scaleBar.mouseDown = true
+	C_Timer.After(1, function()
+		editbox:SetFocus(false)
+		editbox:SetAutoFocus(false)
+		editbox:ClearFocus()
 	end)
 
-	scaleBar:SetHook ("OnMouseUp", function()
-		frame:SetScale(config.scale)
-		scaleBar.mouseDown = false
-	end)
-	
-	scaleBar:SetAlpha (0.70)
-	
 	return scaleBar
 end
 
@@ -3927,7 +3983,7 @@ local tab_container_on_show = function (self)
 	self.SelectIndex (self.AllButtons[index], nil, index)
 end
 
-function DF:CreateTabContainer (parent, title, frame_name, frame_list, options_table)
+function DF:CreateTabContainer (parent, title, frame_name, frameList, options_table)
 	
 	local options_text_template = DF:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE")
 	local options_dropdown_template = DF:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE")
@@ -3936,13 +3992,13 @@ function DF:CreateTabContainer (parent, title, frame_name, frame_list, options_t
 	local options_button_template = DF:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE")
 	
 	options_table = options_table or {}
-	local frame_width = parent:GetWidth()
+	local frameWidth = parent:GetWidth()
 	local frame_height = parent:GetHeight()
 	local y_offset = options_table.y_offset or 0
 	local button_width = options_table.button_width or 160
 	local button_height = options_table.button_height or 20
-	local button_anchor_x = options_table.button_x or 230
-	local button_anchor_y = options_table.button_y or -32
+	local buttonAnchorX = options_table.button_x or 230
+	local buttonAnchorY = options_table.button_y or -32
 	local button_text_size = options_table.button_text_size or 10
 	
 	local mainFrame = CreateFrame ("frame", frame_name, parent.widget or parent, "BackdropTemplate")
@@ -3967,7 +4023,7 @@ function DF:CreateTabContainer (parent, title, frame_name, frame_list, options_t
 		mainFrame.CanCloseWithRightClick = true
 	end
 	
-	for i, frame in ipairs (frame_list) do
+	for i, frame in ipairs (frameList) do
 		local f = CreateFrame ("frame", "$parent" .. frame.name, mainFrame, "BackdropTemplate")
 		f:SetAllPoints()
 		f:SetFrameLevel (210)
@@ -4011,10 +4067,13 @@ function DF:CreateTabContainer (parent, title, frame_name, frame_list, options_t
 	end
 	
 	--order buttons
-	local x = button_anchor_x
-	local y = button_anchor_y
-	local space_for_buttons = frame_width - (#frame_list*3) - button_anchor_x
+	local x = buttonAnchorX
+	local y = buttonAnchorY
+	local spaceBetweenButtons = 3
+
+	local space_for_buttons = frameWidth - (#frameList * spaceBetweenButtons) - buttonAnchorX
 	local amount_buttons_per_row = floor (space_for_buttons / button_width)
+
 	local last_button = mainFrame.AllButtons[1]
 	
 	mainFrame.AllButtons[1]:SetPoint ("topleft", mainTitle, "topleft", x, y)
@@ -4026,7 +4085,7 @@ function DF:CreateTabContainer (parent, title, frame_name, frame_list, options_t
 		x = x + button_width + 2
 		
 		if (i % amount_buttons_per_row == 0) then
-			x = button_anchor_x
+			x = buttonAnchorX
 			y = y - button_height - 1
 		end
 	end
@@ -9643,6 +9702,8 @@ DF.TimeLineBlockFunctions = {
 		--dataIndex stores which line index from the data this line will use
 		--lineData store members: .text .icon .timeline
 		local lineData = data.lines [self.dataIndex]
+
+		self.spellId = lineData.spellId
 		
 		--if there's an icon, anchor the text at the right side of the icon
 		--this is the title and icon of the title
@@ -9784,6 +9845,14 @@ DF.TimeLineFunctions = {
 			line = CreateFrame ("frame", "$parentLine" .. index, self.body, "BackdropTemplate")
 			DF:Mixin (line, DF.TimeLineBlockFunctions)
 			self.lines [index] = line
+
+			local lineHeader = CreateFrame("frame", nil, line, "BackdropTemplate")
+			lineHeader:SetPoint("topleft", line, "topleft", 0, 0)
+			lineHeader:SetPoint("bottomleft", line, "bottomleft", 0, 0)
+			lineHeader:SetScript("OnEnter", self.options.header_on_enter)
+			lineHeader:SetScript("OnLeave", self.options.header_on_leave)
+
+			line.lineHeader = lineHeader
 			
 			--store the individual textures that shows the timeline information
 			line.blocks = {}
@@ -9884,6 +9953,7 @@ DF.TimeLineFunctions = {
 		for i = 1, #self.data.lines do
 			local line = self:GetLine (i)
 			line.dataIndex = i --this index is used inside the line update function to know which data to get
+			line.lineHeader:SetWidth(self.options.header_width)
 			line:SetBlocksFromData() --the function to update runs within the line object
 		end
 		
@@ -9905,15 +9975,14 @@ DF.TimeLineFunctions = {
 }
 
 --creates a regular scroll in horizontal position
-function DF:CreateTimeLineFrame (parent, name, options, timelineOptions)
-
+function DF:CreateTimeLineFrame(parent, name, options, timelineOptions)
 	local width = options and options.width or timeline_options.width
 	local height = options and options.height or timeline_options.height
 	local scrollWidth = 800 --placeholder until the timeline receives data
 	local scrollHeight = 800 --placeholder until the timeline receives data
 
-	local frameCanvas = CreateFrame ("scrollframe", name, parent, "BackdropTemplate")
-	DF:Mixin (frameCanvas, DF.TimeLineFunctions)
+	local frameCanvas = CreateFrame("scrollframe", name, parent, "BackdropTemplate")
+	DF:Mixin(frameCanvas, DF.TimeLineFunctions)
 	
 	frameCanvas.data = {}
 	frameCanvas.lines = {}
@@ -9940,10 +10009,11 @@ function DF:CreateTimeLineFrame (parent, name, options, timelineOptions)
 	frameCanvas.elapsedTimeFrame = DF:CreateElapsedTimeFrame (frameBody, frameCanvas:GetName() and frameCanvas:GetName() .. "ElapsedTimeFrame", timelineOptions)
 	
 	--create horizontal slider
-		local horizontalSlider = CreateFrame ("slider", nil, parent, "BackdropTemplate")
+		local horizontalSlider = CreateFrame ("slider", frameCanvas:GetName() .. "HorizontalSlider", parent, "BackdropTemplate")
 		horizontalSlider.bg = horizontalSlider:CreateTexture (nil, "background")
 		horizontalSlider.bg:SetAllPoints (true)
 		horizontalSlider.bg:SetTexture (0, 0, 0, 0.5)
+		frameCanvas.horizontalSlider = horizontalSlider
 
 		horizontalSlider:SetBackdrop (frameCanvas.options.slider_backdrop)
 		horizontalSlider:SetBackdropColor (unpack (frameCanvas.options.slider_backdrop_color))
@@ -9969,11 +10039,9 @@ function DF:CreateTimeLineFrame (parent, name, options, timelineOptions)
 				frameCanvas:SetHorizontalScroll (stepValue)
 			end
 		end)
-		
-		frameCanvas.horizontalSlider = horizontalSlider
 	
 	--create scale slider
-		local scaleSlider = CreateFrame ("slider", nil, parent, "BackdropTemplate")
+		local scaleSlider = CreateFrame("slider", frameCanvas:GetName() .. "ScaleSlider", parent, "BackdropTemplate")
 		scaleSlider.bg = scaleSlider:CreateTexture (nil, "background")
 		scaleSlider.bg:SetAllPoints (true)
 		scaleSlider.bg:SetTexture (0, 0, 0, 0.5)
@@ -10007,10 +10075,11 @@ function DF:CreateTimeLineFrame (parent, name, options, timelineOptions)
 		end)
 
 	--create vertical slider
-		local verticalSlider = CreateFrame ("slider", nil, parent, "BackdropTemplate")
+		local verticalSlider = CreateFrame ("slider", frameCanvas:GetName() .. "VerticalSlider", parent, "BackdropTemplate")
 		verticalSlider.bg = verticalSlider:CreateTexture (nil, "background")
 		verticalSlider.bg:SetAllPoints (true)
 		verticalSlider.bg:SetTexture (0, 0, 0, 0.5)
+		frameCanvas.verticalSlider = verticalSlider
 		
 		verticalSlider:SetBackdrop (frameCanvas.options.slider_backdrop)
 		verticalSlider:SetBackdropColor (unpack (frameCanvas.options.slider_backdrop_color))
@@ -10031,8 +10100,6 @@ function DF:CreateTimeLineFrame (parent, name, options, timelineOptions)
 		verticalSlider:SetScript ("OnValueChanged", function (self)
 		      frameCanvas:SetVerticalScroll (self:GetValue())
 		end)
-		
-		frameCanvas.verticalSlider = verticalSlider
 
 	--mouse scroll
 		frameCanvas:EnableMouseWheel (true)
