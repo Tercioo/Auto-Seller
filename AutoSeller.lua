@@ -168,10 +168,10 @@ function SYH:GetAuctionPrice (itemLink)
 	end
 	
 	--> Trade Skill Master
-	if (TSM) then
-		local price = TSM:GetItemValue (itemLink, "DBMarket")
-		average_price = max (average_price, (price or 0))
-	end
+	--if (TSM) then
+	--	local price = TSM:GetItemValue (itemLink, "DBMarket")
+	--	average_price = max (average_price, (price or 0))
+	--end
 	
 	--> The Undermine Journal
 	if (TheUndermineJournal) then
