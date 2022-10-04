@@ -1,7 +1,11 @@
-## Interface: 90200
+## Interface: 90207
 ## Title: Auto Seller
 ## Notes: Help to sell itens for merchants.
 ## SavedVariables: SalvageYardHDB
+
+#@version-retail@
+## Version: @project-version@-Retail
+#@end-version-retail@
 
 #@no-lib-strip@
 libs\libs.xml

@@ -17,7 +17,6 @@ local loadstring = loadstring --> lua local
 local IS_WOW_PROJECT_MAINLINE = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 local IS_WOW_PROJECT_NOT_MAINLINE = WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE
 local IS_WOW_PROJECT_CLASSIC_ERA = WOW_PROJECT_ID == WOW_PROJECT_CLASSIC
-local IS_WOW_PROJECT_CLASSIC_TBC = WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC
 
 local UnitCastingInfo = UnitCastingInfo
 local UnitChannelInfo = UnitChannelInfo
@@ -62,44 +61,6 @@ do
 end
 
 local PanelMetaFunctions = _G[DF.GlobalWidgetControlNames ["panel"]]
-
---> mixin for options functions
-DF.OptionsFunctions = {
-	SetOption = function (self, optionName, optionValue)
-		if (self.options) then
-			self.options [optionName] = optionValue
-		else
-			self.options = {}
-			self.options [optionName] = optionValue
-		end
-		
-		if (self.OnOptionChanged) then
-			DF:Dispatch (self.OnOptionChanged, self, optionName, optionValue)
-		end
-	end,
-	
-	GetOption = function (self, optionName)
-		return self.options and self.options [optionName]
-	end,
-	
-	GetAllOptions = function (self)
-		if (self.options) then
-			local optionsTable = {}
-			for key, _ in pairs (self.options) do
-				optionsTable [#optionsTable + 1] = key
-			end
-			return optionsTable
-		else
-			return {}
-		end
-	end,
-	
-	BuildOptionsTable = function (self, defaultOptions, userOptions)
-		self.options = self.options or {}
-		DF.table.deploy (self.options, userOptions or {})
-		DF.table.deploy (self.options, defaultOptions or {})
-	end
-}
 
 --> default options for the frame layout
 local default_framelayout_options = {
@@ -1534,18 +1495,17 @@ function DF:IconPick (callback, close_when_select, param1, param2)
 	
 		DF.IconPickFrame = CreateFrame ("frame", "DetailsFrameworkIconPickFrame", UIParent, "BackdropTemplate")
 		tinsert (UISpecialFrames, "DetailsFrameworkIconPickFrame")
-		DF.IconPickFrame:SetFrameStrata ("TOOLTIP")
+		DF.IconPickFrame:SetFrameStrata ("FULLSCREEN")
 		
 		DF.IconPickFrame:SetPoint ("center", UIParent, "center")
-		DF.IconPickFrame:SetWidth (350)
-		DF.IconPickFrame:SetHeight (277)
+		DF.IconPickFrame:SetWidth (416)
+		DF.IconPickFrame:SetHeight (350)
 		DF.IconPickFrame:EnableMouse (true)
 		DF.IconPickFrame:SetMovable (true)
 		
-		DF:CreateTitleBar (DF.IconPickFrame, "Icon Picker")
+		DF:CreateTitleBar (DF.IconPickFrame, "Details! Framework Icon Picker")
 		
 		DF.IconPickFrame:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
-
 		DF.IconPickFrame:SetBackdropBorderColor (0, 0, 0)
 		DF.IconPickFrame:SetBackdropColor (24/255, 24/255, 24/255, .8)
 		DF.IconPickFrame:SetFrameLevel (5000)
@@ -1584,9 +1544,10 @@ function DF:IconPick (callback, close_when_select, param1, param2)
 		DF.IconPickFrame.preview:Hide()
 		
 		--serach
-		DF.IconPickFrame.searchLabel =  DF:NewLabel (DF.IconPickFrame, nil, "$parentSearchBoxLabel", nil, "search:")
+		DF.IconPickFrame.searchLabel =  DF:NewLabel (DF.IconPickFrame, nil, "$parentSearchBoxLabel", nil, "Search:")
 		DF.IconPickFrame.searchLabel:SetPoint ("topleft", DF.IconPickFrame, "topleft", 12, -36)
 		DF.IconPickFrame.searchLabel:SetTemplate (DF:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
+		DF.IconPickFrame.searchLabel.fontsize = 12
 		
 		DF.IconPickFrame.search = DF:NewTextEntry (DF.IconPickFrame, nil, "$parentSearchBox", nil, 140, 20)
 		DF.IconPickFrame.search:SetPoint ("left", DF.IconPickFrame.searchLabel, "right", 2, 0)
@@ -1597,18 +1558,19 @@ function DF:IconPick (callback, close_when_select, param1, param2)
 			if (DF.IconPickFrame.searching == "") then
 				DF.IconPickFrameScroll:Show()
 				DF.IconPickFrame.searching = nil
-				DF.IconPickFrame.updateFunc()
+				DF.IconPickFrameScroll.RefreshIcons()
 			else
 				DF.IconPickFrameScroll:Hide()
 				FauxScrollFrame_SetOffset (DF.IconPickFrame, 1)
 				DF.IconPickFrame.last_filter_index = 1
-				DF.IconPickFrame.updateFunc()
+				DF.IconPickFrameScroll.RefreshIcons()
 			end
 		end)
 		
 		--manually enter the icon path
 		DF.IconPickFrame.customIcon = DF:CreateLabel (DF.IconPickFrame, "Icon Path:", DF:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
 		DF.IconPickFrame.customIcon:SetPoint ("bottomleft", DF.IconPickFrame, "bottomleft", 12, 16)
+		DF.IconPickFrame.customIcon.fontsize = 12
 		
 		DF.IconPickFrame.customIconEntry = DF:CreateTextEntry (DF.IconPickFrame, function()end, 200, 20, "CustomIconEntry", _, _, DF:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
 		DF.IconPickFrame.customIconEntry:SetPoint ("left", DF.IconPickFrame.customIcon, "right", 2, 0)
@@ -1648,66 +1610,63 @@ function DF:IconPick (callback, close_when_select, param1, param2)
 		DF.IconPickFrame.customIconAccept:SetPoint ("left", DF.IconPickFrame.customIconEntry, "right", 2, 0)
 		
 		--fill with icons
-		
 		local MACRO_ICON_FILENAMES = {}
 		local SPELLNAMES_CACHE = {}
-		
-		DF.IconPickFrame:SetScript ("OnShow", function()
-			
-			MACRO_ICON_FILENAMES [1] = "INV_MISC_QUESTIONMARK"
+
+		DF.IconPickFrame:SetScript("OnShow", function()
+			MACRO_ICON_FILENAMES[1] = "INV_MISC_QUESTIONMARK"
 			local index = 2
-		
+	
 			for i = 1, GetNumSpellTabs() do
-				local tab, tabTex, offset, numSpells, _ = GetSpellTabInfo (i)
+				local tab, tabTex, offset, numSpells, _ = GetSpellTabInfo(i)
 				offset = offset + 1
 				local tabEnd = offset + numSpells
 				
 				for j = offset, tabEnd - 1 do
 					--to get spell info by slot, you have to pass in a pet argument
-					local spellType, ID = GetSpellBookItemInfo (j, "player")
+					local spellType, ID = GetSpellBookItemInfo(j, "player")
 					if (spellType ~= "FLYOUT") then
-						MACRO_ICON_FILENAMES [index] = GetSpellBookItemTexture (j, "player") or 0
-						SPELLNAMES_CACHE [index] = GetSpellInfo (ID)
+						MACRO_ICON_FILENAMES [index] = GetSpellBookItemTexture(j, "player") or 0
+						SPELLNAMES_CACHE [index] = GetSpellInfo(ID)
 						index = index + 1
-						
+
 					elseif (spellType == "FLYOUT") then
-						local _, _, numSlots, isKnown = GetFlyoutInfo (ID)
+						local _, _, numSlots, isKnown = GetFlyoutInfo(ID)
 						if (isKnown and numSlots > 0) then
 							for k = 1, numSlots do 
-								local spellID, overrideSpellID, isKnown = GetFlyoutSlotInfo (ID, k)
+								local spellID, overrideSpellID, isKnown = GetFlyoutSlotInfo(ID, k)
 								if (isKnown) then
-									MACRO_ICON_FILENAMES [index] = GetSpellTexture (spellID) or 0
-									SPELLNAMES_CACHE [index] = GetSpellInfo (spellID)
+									MACRO_ICON_FILENAMES [index] = GetSpellTexture(spellID) or 0
+									SPELLNAMES_CACHE [index] = GetSpellInfo(spellID)
 									index = index + 1
 								end
 							end
 						end
-						
 					end
 				end
 			end
 			
-			GetLooseMacroItemIcons (MACRO_ICON_FILENAMES)
-			GetLooseMacroIcons (MACRO_ICON_FILENAMES)
-			GetMacroIcons (MACRO_ICON_FILENAMES)
-			GetMacroItemIcons (MACRO_ICON_FILENAMES)
-			
+			GetLooseMacroItemIcons(MACRO_ICON_FILENAMES)
+			GetLooseMacroIcons(MACRO_ICON_FILENAMES)
+			GetMacroIcons(MACRO_ICON_FILENAMES)
+			GetMacroItemIcons(MACRO_ICON_FILENAMES)
+
 			--reset the custom icon text entry
 			DF.IconPickFrame.customIconEntry:SetText ("")
 			--reset the search text entry
 			DF.IconPickFrame.search:SetText ("")
 		end)
 		
-		DF.IconPickFrame:SetScript ("OnHide", function()
-			wipe (MACRO_ICON_FILENAMES)
-			wipe (SPELLNAMES_CACHE)
+		DF.IconPickFrame:SetScript("OnHide", function()
+			wipe(MACRO_ICON_FILENAMES)
+			wipe(SPELLNAMES_CACHE)
 			DF.IconPickFrame.preview:Hide()
 			collectgarbage()
 		end)
 		
 		DF.IconPickFrame.buttons = {}
 		
-		local OnClickFunction = function (self) 
+		local onClickFunction = function(self) 
 		
 			DF:QuickDispatch (DF.IconPickFrame.callback, self.icon:GetTexture(), DF.IconPickFrame.param1, DF.IconPickFrame.param2)
 			
@@ -1716,204 +1675,158 @@ function DF:IconPick (callback, close_when_select, param1, param2)
 			end
 		end
 		
-		local onenter = function (self)
+		local onEnter = function (self)
 			DF.IconPickFrame.preview:SetPoint ("bottom", self, "top", 0, 2)
-			DF.IconPickFrame.preview.icon:SetTexture (self.icon:GetTexture())
+			DF.IconPickFrame.preview.icon:SetTexture(self.icon:GetTexture())
 			DF.IconPickFrame.preview:Show()
 			self.icon:SetBlendMode ("ADD")
 		end
-		local onleave = function (self)
+		local onLeave = function (self)
 			DF.IconPickFrame.preview:Hide()
 			self.icon:SetBlendMode ("BLEND")
 		end
 		
 		local backdrop = {bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tile = true, tileSize = 16,
 		insets = {left = 0, right = 0, top = 0, bottom = 0}, edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1}
-		
-		for i = 0, 9 do 
-			local newcheck = CreateFrame ("Button", "DetailsFrameworkIconPickFrameButton"..(i+1), DF.IconPickFrame, "BackdropTemplate")
-			local image = newcheck:CreateTexture ("DetailsFrameworkIconPickFrameButton"..(i+1).."Icon", "overlay")
-			newcheck.icon = image
-			image:SetPoint ("topleft", newcheck, "topleft", 2, -2) image:SetPoint ("bottomright", newcheck, "bottomright", -2, 2)
-			newcheck:SetSize (30, 28)
-			newcheck:SetBackdrop (backdrop)
-			
-			newcheck:SetScript ("OnClick", OnClickFunction)
-			newcheck.param1 = i+1
-			
-			newcheck:SetPoint ("topleft", DF.IconPickFrame, "topleft", 12 + (i*30), -60)
-			newcheck:SetID (i+1)
-			DF.IconPickFrame.buttons [#DF.IconPickFrame.buttons+1] = newcheck
-			newcheck:SetScript ("OnEnter", onenter)
-			newcheck:SetScript ("OnLeave", onleave)
-		end
-		for i = 11, 20 do
-			local newcheck = CreateFrame ("Button", "DetailsFrameworkIconPickFrameButton"..i, DF.IconPickFrame, "BackdropTemplate")
-			local image = newcheck:CreateTexture ("DetailsFrameworkIconPickFrameButton"..i.."Icon", "overlay")
-			newcheck.icon = image
-			image:SetPoint ("topleft", newcheck, "topleft", 2, -2) image:SetPoint ("bottomright", newcheck, "bottomright", -2, 2)
-			newcheck:SetSize (30, 28)
-			newcheck:SetBackdrop (backdrop)
-			
-			newcheck:SetScript ("OnClick", OnClickFunction)
-			newcheck.param1 = i
-			
-			newcheck:SetPoint ("topleft", "DetailsFrameworkIconPickFrameButton"..(i-10), "bottomleft", 0, -1)
-			newcheck:SetID (i)
-			DF.IconPickFrame.buttons [#DF.IconPickFrame.buttons+1] = newcheck
-			newcheck:SetScript ("OnEnter", onenter)
-			newcheck:SetScript ("OnLeave", onleave)
-		end
-		for i = 21, 30 do 
-			local newcheck = CreateFrame ("Button", "DetailsFrameworkIconPickFrameButton"..i, DF.IconPickFrame, "BackdropTemplate")
-			local image = newcheck:CreateTexture ("DetailsFrameworkIconPickFrameButton"..i.."Icon", "overlay")
-			newcheck.icon = image
-			image:SetPoint ("topleft", newcheck, "topleft", 2, -2) image:SetPoint ("bottomright", newcheck, "bottomright", -2, 2)
-			newcheck:SetSize (30, 28)
-			newcheck:SetBackdrop (backdrop)
-			
-			newcheck:SetScript ("OnClick", OnClickFunction)
-			newcheck.param1 = i
-			
-			newcheck:SetPoint ("topleft", "DetailsFrameworkIconPickFrameButton"..(i-10), "bottomleft", 0, -1)
-			newcheck:SetID (i)
-			DF.IconPickFrame.buttons [#DF.IconPickFrame.buttons+1] = newcheck
-			newcheck:SetScript ("OnEnter", onenter)
-			newcheck:SetScript ("OnLeave", onleave)
-		end
-		for i = 31, 40 do 
-			local newcheck = CreateFrame ("Button", "DetailsFrameworkIconPickFrameButton"..i, DF.IconPickFrame, "BackdropTemplate")
-			local image = newcheck:CreateTexture ("DetailsFrameworkIconPickFrameButton"..i.."Icon", "overlay")
-			newcheck.icon = image
-			image:SetPoint ("topleft", newcheck, "topleft", 2, -2) image:SetPoint ("bottomright", newcheck, "bottomright", -2, 2)
-			newcheck:SetSize (30, 28)
-			newcheck:SetBackdrop (backdrop)
-			
-			newcheck:SetScript ("OnClick", OnClickFunction)
-			newcheck.param1 = i
-			
-			newcheck:SetPoint ("topleft", "DetailsFrameworkIconPickFrameButton"..(i-10), "bottomleft", 0, -1)
-			newcheck:SetID (i)
-			DF.IconPickFrame.buttons [#DF.IconPickFrame.buttons+1] = newcheck
-			newcheck:SetScript ("OnEnter", onenter)
-			newcheck:SetScript ("OnLeave", onleave)
-		end
-		for i = 41, 50 do 
-			local newcheck = CreateFrame ("Button", "DetailsFrameworkIconPickFrameButton"..i, DF.IconPickFrame, "BackdropTemplate")
-			local image = newcheck:CreateTexture ("DetailsFrameworkIconPickFrameButton"..i.."Icon", "overlay")
-			newcheck.icon = image
-			image:SetPoint ("topleft", newcheck, "topleft", 2, -2) image:SetPoint ("bottomright", newcheck, "bottomright", -2, 2)
-			newcheck:SetSize (30, 28)
-			newcheck:SetBackdrop (backdrop)
-			
-			newcheck:SetScript ("OnClick", OnClickFunction)
-			newcheck.param1 = i
-			
-			newcheck:SetPoint ("topleft", "DetailsFrameworkIconPickFrameButton"..(i-10), "bottomleft", 0, -1)
-			newcheck:SetID (i)
-			DF.IconPickFrame.buttons [#DF.IconPickFrame.buttons+1] = newcheck
-			newcheck:SetScript ("OnEnter", onenter)
-			newcheck:SetScript ("OnLeave", onleave)
-		end
-		for i = 51, 60 do 
-			local newcheck = CreateFrame ("Button", "DetailsFrameworkIconPickFrameButton"..i, DF.IconPickFrame, "BackdropTemplate")
-			local image = newcheck:CreateTexture ("DetailsFrameworkIconPickFrameButton"..i.."Icon", "overlay")
-			newcheck.icon = image
-			image:SetPoint ("topleft", newcheck, "topleft", 2, -2) image:SetPoint ("bottomright", newcheck, "bottomright", -2, 2)
-			newcheck:SetSize (30, 28)
-			newcheck:SetBackdrop (backdrop)
-			
-			newcheck:SetScript ("OnClick", OnClickFunction)
-			newcheck.param1 = i
-			
-			newcheck:SetPoint ("topleft", "DetailsFrameworkIconPickFrameButton"..(i-10), "bottomleft", 0, -1)
-			newcheck:SetID (i)
-			DF.IconPickFrame.buttons [#DF.IconPickFrame.buttons+1] = newcheck
-			newcheck:SetScript ("OnEnter", onenter)
-			newcheck:SetScript ("OnLeave", onleave)
+
+		for _, button in ipairs(DF.IconPickFrame.buttons) do
+			button:SetBackdropBorderColor(0, 0, 0, 1)
 		end
 		
-		local scroll = CreateFrame ("ScrollFrame", "DetailsFrameworkIconPickFrameScroll", DF.IconPickFrame, "ListScrollFrameTemplate", "BackdropTemplate")
-		DF:ReskinSlider (scroll)
+		local width = 412
+		local height = 248
+		local linesAmount = 6
+		local lineHeight = 40
 
-		local ChecksFrame_Update = function (self)
+		local updateIconScroll = function(self, data, offset, totalLines)
+            for i = 1, totalLines do
+                local index = i + offset
+                local iconsInThisLine = data[index]
+				if (iconsInThisLine) then
+					local line = self:GetLine(i)
+                    for o = 1, #iconsInThisLine do
+						local _, _, texture = GetSpellInfo(iconsInThisLine[o])
+						if (texture) then
+							line.buttons[o].icon:SetTexture(texture)
+							line.buttons[o].texture = texture
+						else
+							line.buttons[o].icon:SetTexture(iconsInThisLine[o])
+							line.buttons[o].texture = iconsInThisLine[o]
+						end
+					end
+				end
+			end
+		end
 
+		local lower = string.lower
+
+		local scroll = DF:CreateScrollBox(DF.IconPickFrame, "DetailsFrameworkIconPickFrameScroll", updateIconScroll, {}, width, height, linesAmount, lineHeight)
+		DF:ReskinSlider(scroll)
+		scroll:SetPoint ("topleft", DF.IconPickFrame, "topleft", 2, -58)
+
+		function scroll.RefreshIcons()
+			--build icon list
+			local iconList = {}
 			local numMacroIcons = #MACRO_ICON_FILENAMES
-			local macroPopupIcon, macroPopupButton
-			local macroPopupOffset = FauxScrollFrame_GetOffset (scroll)
-			local index
 
-			local texture
 			local filter
 			if (DF.IconPickFrame.searching) then
-				filter = string_lower (DF.IconPickFrame.searching)
+				filter = lower(DF.IconPickFrame.searching)
 			end
 
-			local pool
-			local shown = 0
-			
 			if (filter and filter ~= "") then
-				--do the filter
-				pool = {}
+				local index
+				local currentTable
 				for i = 1, #SPELLNAMES_CACHE do
-					if (SPELLNAMES_CACHE [i] and SPELLNAMES_CACHE [i]:lower():find (filter)) then
-						pool [#pool+1] = MACRO_ICON_FILENAMES [i]
-						shown = shown + 1
+					if (SPELLNAMES_CACHE[i] and SPELLNAMES_CACHE[i]:lower():find(filter)) then
+						if (not index) then
+							index = 1
+							local t = {}
+							iconList[#iconList+1] = t
+							currentTable = t
+						end
+
+						currentTable[index] = SPELLNAMES_CACHE[i]
+
+						index = index + 1
+						if (index == 11) then
+							index = nil
+						end
 					end
+
 				end
 			else
-				shown = nil
-			end
-			
-			if (not pool) then
-				pool = MACRO_ICON_FILENAMES
-			end
-			
-			for i = 1, 60 do
-				macroPopupIcon = _G ["DetailsFrameworkIconPickFrameButton"..i.."Icon"]
-				macroPopupButton = _G ["DetailsFrameworkIconPickFrameButton"..i]
-				index = (macroPopupOffset * 10) + i
-				texture = pool [index]
-				if ( index <= numMacroIcons and texture ) then
-
-					if (type (texture) == "number") then
-						macroPopupIcon:SetTexture (texture)
-					else
-						macroPopupIcon:SetTexture ("INTERFACE\\ICONS\\" .. texture)
+				for i = 1, #SPELLNAMES_CACHE, 10 do
+					local t = {}
+					iconList[#iconList+1] = t
+					for o = i, i+9 do
+						if (SPELLNAMES_CACHE[o]) then
+							t[#t+1] = SPELLNAMES_CACHE[o]
+						end
 					end
+				end
 
-					macroPopupIcon:SetTexCoord (4/64, 60/64, 4/64, 60/64)
-					macroPopupButton.IconID = index
-					macroPopupButton:Show()
-				else
-					macroPopupButton:Hide()
+				for i = 1, #MACRO_ICON_FILENAMES, 10 do
+					local t = {}
+					iconList[#iconList+1] = t
+					for o = i, i+9 do
+						if (MACRO_ICON_FILENAMES[o]) then
+							t[#t+1] = MACRO_ICON_FILENAMES[o]
+						end
+					end
 				end
 			end
 
-			pool = nil
-			
-			-- Scrollbar stuff
-			FauxScrollFrame_Update (scroll, ceil ((shown or numMacroIcons) / 10) , 5, 20 )
+			--set data and refresh
+			scroll:SetData(iconList)
+			scroll:Refresh()
 		end
 
-		DF.IconPickFrame.updateFunc = ChecksFrame_Update
-		
-		scroll:SetPoint ("topleft", DF.IconPickFrame, "topleft", -18, -58)
-		scroll:SetWidth (330)
-		scroll:SetHeight (178)
-		scroll:SetScript ("OnVerticalScroll", function (self, offset) FauxScrollFrame_OnVerticalScroll (scroll, offset, 20, ChecksFrame_Update) end)
-		scroll.update = ChecksFrame_Update
+		--create the lines and button of the scroll box
+		for i = 1, linesAmount do
+			scroll:CreateLine(function(self, index)
+				local line = CreateFrame("button", "$parentLine" .. index, self, "BackdropTemplate")
+				line:SetPoint("topleft", self, "topleft", 1, -((index-1)*(lineHeight+1)) - 1)
+				line:SetSize(width - 2, lineHeight)
+				line:SetBackdrop({bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
+				line:SetBackdropColor(.2, .2, .2, .5)
+				line.buttons = {}
+			
+				local lastButton
+
+				for o = 1, 10 do
+					local button = CreateFrame("button", "$parentIcon" .. o, line)
+					if (not lastButton) then
+						button:SetPoint("left", line, "left", 0, 0)
+					else
+						button:SetPoint("left", lastButton, "right", 1, 0)
+					end
+					button:SetSize(lineHeight, lineHeight)
+					button.icon = button:CreateTexture("$parentIcon", "overlay")
+					button.icon:SetAllPoints()
+					button.icon:SetTexCoord(.1, .9, .1, .9)
+					line.buttons[o] = button
+
+					button:SetScript("OnEnter", onEnter)
+					button:SetScript("OnLeave", onLeave)
+					button:SetScript("OnClick", onClickFunction)
+
+					lastButton = button
+				end
+
+				return line
+			end)
+		end
+
 		DF.IconPickFrameScroll = scroll
 		DF.IconPickFrame:Hide()
-		
 	end
 	
 	DF.IconPickFrame.param1, DF.IconPickFrame.param2 = param1, param2
-	
 	DF.IconPickFrame:Show()
-	DF.IconPickFrameScroll.update (DF.IconPickFrameScroll)
 	DF.IconPickFrame.callback = callback or DF.IconPickFrame.emptyFunction
 	DF.IconPickFrame.click_close = close_when_select
+	DF.IconPickFrameScroll.RefreshIcons()
 	
 end	
 
@@ -2136,6 +2049,10 @@ function DF:CreateSimplePanel (parent, w, h, title, name, panel_options, db)
 	
 	f.Title:SetPoint ("center", title_bar, "center")
 	f.Close:SetPoint ("right", title_bar, "right", -2, 0)
+
+	if (panel_options.NoCloseButton) then
+		f.Close:Hide()
+	end
 	
 	f:SetScript ("OnMouseDown", simple_panel_mouse_down)
 	f:SetScript ("OnMouseUp", simple_panel_mouse_up)
@@ -3900,7 +3817,7 @@ local button_tab_template = DF.table.copy ({}, DF:GetTemplate ("button", "OPTION
 button_tab_template.backdropbordercolor = nil
 
 DF.TabContainerFunctions.CreateUnderlineGlow = function (button)
-	local selectedGlow = button:CreateTexture (nil, "background", -4)
+	local selectedGlow = button:CreateTexture (nil, "background", nil, -4)
 	selectedGlow:SetPoint ("topleft", button.widget, "bottomleft", -7, 0)
 	selectedGlow:SetPoint ("topright", button.widget, "bottomright", 7, 0)
 	selectedGlow:SetTexture ([[Interface\BUTTONS\UI-Panel-Button-Glow]])
@@ -3988,7 +3905,6 @@ local tab_container_on_show = function (self)
 end
 
 function DF:CreateTabContainer (parent, title, frame_name, frameList, options_table, hookList)
-	
 	local options_text_template = DF:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE")
 	local options_dropdown_template = DF:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE")
 	local options_switch_template = DF:GetTemplate ("switch", "OPTIONS_CHECKBOX_TEMPLATE")
@@ -3996,19 +3912,19 @@ function DF:CreateTabContainer (parent, title, frame_name, frameList, options_ta
 	local options_button_template = DF:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE")
 	
 	options_table = options_table or {}
-	local frameWidth = parent:GetWidth()
-	local frame_height = parent:GetHeight()
+	local parentFrameWidth = parent:GetWidth()
 	local y_offset = options_table.y_offset or 0
-	local button_width = options_table.button_width or 160
-	local button_height = options_table.button_height or 20
+	local buttonWidth = options_table.button_width or 160
+	local buttonHeight = options_table.button_height or 20
 	local buttonAnchorX = options_table.button_x or 230
 	local buttonAnchorY = options_table.button_y or -32
 	local button_text_size = options_table.button_text_size or 10
+	local containerWidthOffset = options_table.container_width_offset or 0
 	
 	local mainFrame = CreateFrame ("frame", frame_name, parent.widget or parent, "BackdropTemplate")
 	mainFrame:SetAllPoints()
 	DF:Mixin (mainFrame, DF.TabContainerFunctions)
-	mainFrame.hookList = hookList
+	mainFrame.hookList = hookList or {}
 	
 	local mainTitle = DF:CreateLabel (mainFrame, title, 24, "white")
 	mainTitle:SetPoint ("topleft", mainFrame, "topleft", 10, -30 + y_offset)
@@ -4036,9 +3952,10 @@ function DF:CreateTabContainer (parent, title, frame_name, frameList, options_ta
 		
 		local title = DF:CreateLabel (f, frame.title, 16, "silver")
 		title:SetPoint ("topleft", mainTitle, "bottomleft", 0, 0)
+		f.titleText = title
 		
-		local tabButton = DF:CreateButton (mainFrame, DF.TabContainerFunctions.SelectIndex, button_width, button_height, frame.title, i, nil, nil, nil, "$parentTabButton" .. frame.name, false, button_tab_template)
-		PixelUtil.SetSize (tabButton, button_width, button_height)
+		local tabButton = DF:CreateButton (mainFrame, DF.TabContainerFunctions.SelectIndex, buttonWidth, buttonHeight, frame.title, i, nil, nil, nil, "$parentTabButton" .. frame.name, false, button_tab_template)
+		PixelUtil.SetSize (tabButton, buttonWidth, buttonHeight)
 		tabButton:SetFrameLevel (220)
 		tabButton.textsize = button_text_size
 		tabButton.mainFrame = mainFrame
@@ -4076,22 +3993,20 @@ function DF:CreateTabContainer (parent, title, frame_name, frameList, options_ta
 	local y = buttonAnchorY
 	local spaceBetweenButtons = 3
 
-	local space_for_buttons = frameWidth - (#frameList * spaceBetweenButtons) - buttonAnchorX
-	local amount_buttons_per_row = floor (space_for_buttons / button_width)
-
-	local last_button = mainFrame.AllButtons[1]
+	local allocatedSpaceForButtons = parentFrameWidth - ((#frameList - 2) * spaceBetweenButtons) - buttonAnchorX + containerWidthOffset
+	local amountButtonsPerRow = floor(allocatedSpaceForButtons / buttonWidth)
 	
-	mainFrame.AllButtons[1]:SetPoint ("topleft", mainTitle, "topleft", x, y)
-	x = x + button_width + 2
+	mainFrame.AllButtons[1]:SetPoint("topleft", mainTitle, "topleft", x, y)
+	x = x + buttonWidth + 2
 	
 	for i = 2, #mainFrame.AllButtons do
-		local button = mainFrame.AllButtons [i]
-		PixelUtil.SetPoint (button, "topleft", mainTitle, "topleft", x, y)
-		x = x + button_width + 2
+		local button = mainFrame.AllButtons[i]
+		PixelUtil.SetPoint(button, "topleft", mainTitle, "topleft", x, y)
+		x = x + buttonWidth + 2
 		
-		if (i % amount_buttons_per_row == 0) then
+		if (i % amountButtonsPerRow == 0) then
 			x = buttonAnchorX
-			y = y - button_height - 1
+			y = y - buttonHeight - 1
 		end
 	end
 	
@@ -4314,196 +4229,28 @@ end
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- ~scrollbox
 
-DF.SortFunctions = {}
-
-local SortMember = ""
-local SortByMember = function (t1, t2)
-	return t1[SortMember] > t2[SortMember]
-end
-local SortByMemberReverse = function (t1, t2)
-	return t1[SortMember] < t2[SortMember]
-end
-
-DF.SortFunctions.Sort = function (self, t, by, is_reverse)
-	SortMember = by
-	if (not is_reverse) then
-		table.sort (t, SortByMember)
-	else
-		table.sort (t, SortByMemberReverse)
-	end
-end
-
-
-DF.ScrollBoxFunctions = {}
-
-DF.ScrollBoxFunctions.Refresh = function (self)
-	for _, frame in ipairs (self.Frames) do 
-		frame:Hide()
-		frame._InUse = nil
-	end
+function DF:CreateScrollBox (parent, name, refreshFunc, data, width, height, lineAmount, lineHeight, createLineFunc, autoAmount, noScroll)
+	local scroll = CreateFrame("scrollframe", name, parent, "FauxScrollFrameTemplate, BackdropTemplate")
 	
-	local offset = 0
-	if (self.IsFauxScroll) then
-		FauxScrollFrame_Update (self, #self.data, self.LineAmount, self.LineHeight)
-		offset = FauxScrollFrame_GetOffset (self)
-	end	
-	
-	DF:CoreDispatch ((self:GetName() or "ScrollBox") .. ":Refresh()", self.refresh_func, self, self.data, offset, self.LineAmount)
-
-	for _, frame in ipairs (self.Frames) do 
-		if (not frame._InUse) then
-			frame:Hide()
-		else
-			frame:Show()
-		end
-	end
-	
-	self:Show()
-	
-	if (self.HideScrollBar) then
-		local frameName = self:GetName()
-		if (frameName) then
-			local scrollBar = _G [frameName .. "ScrollBar"]
-			if (scrollBar) then
-				scrollBar:Hide()
-			end
-		else
-		
-		end
-		
-	end
-	
-	return self.Frames
-end
-
-DF.ScrollBoxFunctions.OnVerticalScroll = function (self, offset)
-	FauxScrollFrame_OnVerticalScroll (self, offset, self.LineHeight, self.Refresh)
-	return true
-end
-
-DF.ScrollBoxFunctions.CreateLine = function (self, func)
-	if (not func) then
-		func = self.CreateLineFunc
-	end
-	local okay, newLine = pcall (func, self, #self.Frames+1)
-	if (okay) then
-		tinsert (self.Frames, newLine)
-		newLine.Index = #self.Frames
-		return newLine
-	else
-		error ("Details! FrameWork: CreateLine(): " .. newLine)
-	end
-end
-
-DF.ScrollBoxFunctions.GetLine = function (self, line_index)
-	local line = self.Frames [line_index]
-	if (line) then
-		line._InUse = true
-	end
-	return line
-end
-
-DF.ScrollBoxFunctions.SetData = function (self, data)
-	self.data = data
-end
-DF.ScrollBoxFunctions.GetData = function (self)
-	return self.data
-end
-
-DF.ScrollBoxFunctions.GetFrames = function (self)
-	return self.Frames
-end
-
-DF.ScrollBoxFunctions.GetLines = function (self) --alias of GetFrames
-	return self.Frames
-end
-
-DF.ScrollBoxFunctions.GetNumFramesCreated = function (self)
-	return #self.Frames
-end
-
-DF.ScrollBoxFunctions.GetNumFramesShown = function (self)
-	return self.LineAmount
-end
-
-DF.ScrollBoxFunctions.SetNumFramesShown = function (self, new_amount)
-	--> hide frames which won't be used
-	if (new_amount < #self.Frames) then
-		for i = new_amount+1, #self.Frames do
-			self.Frames [i]:Hide()
-		end
-	end
-	
-	--> set the new amount
-	self.LineAmount = new_amount
-end
-
-DF.ScrollBoxFunctions.SetFramesHeight = function (self, new_height)
-	self.LineHeight = new_height
-	self:OnSizeChanged()
-	self:Refresh()
-end
-
-DF.ScrollBoxFunctions.OnSizeChanged = function (self)
-	if (self.ReajustNumFrames) then
-		--> how many lines the scroll can show
-		local amountOfFramesToShow = floor (self:GetHeight() / self.LineHeight)
-		
-		--> how many lines the scroll already have
-		local totalFramesCreated = self:GetNumFramesCreated()
-		
-		--> how many lines are current shown
-		local totalFramesShown = self:GetNumFramesShown()
-
-		--> the amount of frames increased
-		if (amountOfFramesToShow > totalFramesShown) then
-			for i = totalFramesShown+1, amountOfFramesToShow do
-				--> check if need to create a new line
-				if (i > totalFramesCreated) then
-					self:CreateLine (self.CreateLineFunc)
-				end
-			end
-			
-		--> the amount of frames decreased
-		elseif (amountOfFramesToShow < totalFramesShown) then
-			--> hide all frames above the new amount to show
-			for i = totalFramesCreated, amountOfFramesToShow, -1 do
-				if (self.Frames [i]) then
-					self.Frames [i]:Hide()
-				end
-			end
-		end
-
-		--> set the new amount of frames
-		self:SetNumFramesShown (amountOfFramesToShow)
-		
-		--> refresh lines
-		self:Refresh()
-	end
-end
-
-function DF:CreateScrollBox (parent, name, refresh_func, data, width, height, line_amount, line_height, create_line_func, auto_amount, no_scroll)
-	local scroll = CreateFrame ("scrollframe", name, parent, "FauxScrollFrameTemplate,BackdropTemplate")
-	
-	DF:ApplyStandardBackdrop (scroll)
+	DF:ApplyStandardBackdrop(scroll)
 	
 	scroll:SetSize (width, height)
-	scroll.LineAmount = line_amount
-	scroll.LineHeight = line_height
+	scroll.LineAmount = lineAmount
+	scroll.LineHeight = lineHeight
 	scroll.IsFauxScroll = true
-	scroll.HideScrollBar = no_scroll
+	scroll.HideScrollBar = noScroll
 	scroll.Frames = {}
-	scroll.ReajustNumFrames = auto_amount
-	scroll.CreateLineFunc = create_line_func
+	scroll.ReajustNumFrames = autoAmount
+	scroll.CreateLineFunc = createLineFunc
 	
-	DF:Mixin (scroll, DF.SortFunctions)
-	DF:Mixin (scroll, DF.ScrollBoxFunctions)
+	DF:Mixin(scroll, DF.SortFunctions)
+	DF:Mixin(scroll, DF.ScrollBoxFunctions)
 	
-	scroll.refresh_func = refresh_func
+	scroll.refresh_func = refreshFunc
 	scroll.data = data
 	
-	scroll:SetScript ("OnVerticalScroll", scroll.OnVerticalScroll)
-	scroll:SetScript ("OnSizeChanged", DF.ScrollBoxFunctions.OnSizeChanged)
+	scroll:SetScript("OnVerticalScroll", scroll.OnVerticalScroll)
+	scroll:SetScript("OnSizeChanged", DF.ScrollBoxFunctions.OnSizeChanged)
 	
 	return scroll
 end
@@ -5109,33 +4856,35 @@ end
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- ~standard backdrop
 
-function DF:ApplyStandardBackdrop (f, darkTheme, alphaScale)
-	alphaScale = alphaScale or 1.0
+function DF:ApplyStandardBackdrop(frame, solidColor, alphaScale)
+	alphaScale = alphaScale or 0.95
 
-	if(not f.SetBackdrop)then
-		print(debugstack(1,2,1))
+	if (not frame.SetBackdrop)then
+		--print(debugstack(1,2,1))
+		Mixin(frame, BackdropTemplateMixin)
 	end
 
-	if (darkTheme) then
-		f:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Cooldown\cooldown2]], tileSize = 32, tile = true})
-		f:SetBackdropBorderColor (0, 0, 0, 1)
-		f:SetBackdropColor (.54, .54, .54, .54 * alphaScale)
+	local red, green, blue, alpha = DF:GetDefaultBackdropColor()
+
+	if (solidColor) then
+		local colorDeviation = 0.05
+		frame:SetBackdrop({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Buttons\WHITE8X8]], tileSize = 32, tile = true})
+		frame:SetBackdropColor(red, green, blue, 0.872)
+		frame:SetBackdropBorderColor(0, 0, 0, 0.95)
+
 	else
-		f:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
-		f:SetBackdropBorderColor (0, 0, 0, 1)
-		f:SetBackdropColor (0, 0, 0, 0.2 * alphaScale)
+		frame:SetBackdrop({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
+		frame:SetBackdropColor(red, green, blue, alpha * alphaScale)
+		frame:SetBackdropBorderColor(0, 0, 0, 0.95)		
 	end
 	
-	if (not f.__background) then
-		f.__background = f:CreateTexture (nil, "background")
+	if (not frame.__background) then
+		frame.__background = frame:CreateTexture(nil, "background")
+		frame.__background:SetColorTexture(red, green, blue)
+		frame.__background:SetAllPoints()
 	end
-	
-	f.__background:SetColorTexture (0.2317647, 0.2317647, 0.2317647)
-	f.__background:SetVertexColor (0.27, 0.27, 0.27)
-	f.__background:SetAlpha (0.8 * alphaScale)
-	f.__background:SetVertTile (true)
-	f.__background:SetHorizTile (true)
-	f.__background:SetAllPoints()
+
+	frame.__background:SetAlpha(alpha * alphaScale)
 end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -5302,7 +5051,7 @@ DF.IconRowFunctions = {
 		end
 	end,
 	
-	SetIcon = function (self, spellId, borderColor, startTime, duration, forceTexture, descText, count, debuffType, caster, canStealOrPurge, spellName, isBuff)
+	SetIcon = function (self, spellId, borderColor, startTime, duration, forceTexture, descText, count, debuffType, caster, canStealOrPurge, spellName, isBuff, modRate)
 	
 		local actualSpellName, _, spellIcon = GetSpellInfo (spellId)
 	
@@ -5311,6 +5060,7 @@ DF.IconRowFunctions = {
 		end
 		
 		spellName = spellName or actualSpellName or "unknown_aura"
+		modRate = modRate or 1
 		
 		if (spellIcon) then
 			local iconFrame = self:GetIcon()
@@ -5324,14 +5074,14 @@ DF.IconRowFunctions = {
 			end	
 			
 			if (startTime) then
-				CooldownFrame_Set (iconFrame.Cooldown, startTime, duration, true, true)
+				CooldownFrame_Set (iconFrame.Cooldown, startTime, duration, true, true, modRate)
 				
 				if (self.options.show_text) then
 					iconFrame.CountdownText:Show()
 					
 					local now = GetTime()
 					
-					iconFrame.timeRemaining = startTime + duration - now
+					iconFrame.timeRemaining = (startTime + duration - now) / modRate
 					iconFrame.expirationTime = startTime + duration
 					
 					local formattedTime = (iconFrame.timeRemaining > 0) and self.options.decimal_timer and iconFrame.parentIconRow.FormatCooldownTimeDecimal(iconFrame.timeRemaining) or iconFrame.parentIconRow.FormatCooldownTime(iconFrame.timeRemaining) or ""
@@ -5355,6 +5105,8 @@ DF.IconRowFunctions = {
 				end
 				
 				iconFrame.Cooldown:SetReverse (self.options.cooldown_reverse)
+				iconFrame.Cooldown:SetDrawSwipe (self.options.cooldown_swipe_enabled)
+				iconFrame.Cooldown:SetEdgeTexture (self.options.cooldown_edge_texture)
 				iconFrame.Cooldown:SetHideCountdownNumbers (self.options.surpress_blizzard_cd_timer)
 			else
 				iconFrame.timeRemaining = nil
@@ -5647,6 +5399,8 @@ local default_icon_row_options = {
 	on_tick_cooldown_update = true,
 	decimal_timer = false,
 	cooldown_reverse = false,
+	cooldown_swipe_enabled = true,
+	cooldown_edge_texture = "Interface\\Cooldown\\edge",
 }
 
 function DF:CreateIconRow (parent, name, options)
@@ -5675,38 +5429,38 @@ end
 
 --mixed functions
 DF.HeaderFunctions = {
-	AddFrameToHeaderAlignment = function (self, frame)
+	AddFrameToHeaderAlignment = function(self, frame)
 		self.FramesToAlign = self.FramesToAlign or {}
-		tinsert (self.FramesToAlign, frame)
+		tinsert(self.FramesToAlign, frame)
 	end,
 
 	--@self: an object like a line
 	--@headerFrame: the main header frame
 	--@anchor: which side the columnHeaders are attach
-	AlignWithHeader = function (self, headerFrame, anchor)
+	AlignWithHeader = function(self, headerFrame, anchor)
 		local columnHeaderFrames = headerFrame.columnHeadersCreated
 		anchor = anchor or "topleft"
 		
 		for i = 1, #self.FramesToAlign do
-			local frame = self.FramesToAlign [i]
+			local frame = self.FramesToAlign[i]
 			frame:ClearAllPoints()
 			
-			local columnHeader = columnHeaderFrames [i]
+			local columnHeader = columnHeaderFrames[i]
 			local offset = 0
 			
 			if (columnHeader.columnAlign == "right") then
 				offset = columnHeader:GetWidth()
 				if (frame:GetObjectType() == "FontString") then
-					frame:SetJustifyH ("right")
+					frame:SetJustifyH("right")
 				end
 			end
 			
-			frame:SetPoint (columnHeader.columnAlign, self, anchor, columnHeader.XPosition + columnHeader.columnOffset + offset, 0)
+			frame:SetPoint(columnHeader.columnAlign, self, anchor, columnHeader.XPosition + columnHeader.columnOffset + offset, 0)
 		end
 	end,
 
 	--@self: column header button
-	OnClick = function (self, buttonClicked)
+	OnClick = function(self, buttonClicked)
 		
 		--get the header main frame
 		local headerFrame = self:GetParent()		
@@ -5717,10 +5471,10 @@ DF.HeaderFunctions = {
 		end
 
 		--get the latest column header selected
-		local previousColumnHeader = headerFrame.columnHeadersCreated [headerFrame.columnSelected]
+		local previousColumnHeader = headerFrame.columnHeadersCreated[headerFrame.columnSelected]
 		previousColumnHeader.Arrow:Hide()
-		headerFrame:ResetColumnHeaderBackdrop (previousColumnHeader)
-		headerFrame:SetBackdropColorForSelectedColumnHeader (self)
+		headerFrame:ResetColumnHeaderBackdrop(previousColumnHeader)
+		headerFrame:SetBackdropColorForSelectedColumnHeader(self)
 
 		if (headerFrame.columnSelected == self.columnIndex) then
 			self.order = self.order ~= "ASC" and "ASC" or "DESC"
@@ -5730,20 +5484,24 @@ DF.HeaderFunctions = {
 		--set the new column header selected
 		headerFrame.columnSelected = self.columnIndex
 
-		headerFrame:UpdateSortArrow (self)
+		headerFrame:UpdateSortArrow(self)
 
 		if (headerFrame.options.header_click_callback) then
 			--callback with the main header frame, column header, column index and column order as payload
-			local okay, errortext = pcall (headerFrame.options.header_click_callback, headerFrame, self, self.columnIndex, self.order)
+			local okay, errortext = pcall(headerFrame.options.header_click_callback, headerFrame, self, self.columnIndex, self.order)
 			if (not okay) then
-				print ("DF: Header onClick callback error:", errortext)
+				print("DF: Header onClick callback error:", errortext)
 			end
 		end
 	end,
 }
 
 DF.HeaderCoreFunctions = {
-	SetHeaderTable = function (self, newTable)
+	GetColumnWidth = function(self, columnId)
+		return self.HeaderTable[columnId].width
+	end,
+
+	SetHeaderTable = function(self, newTable)
 		self.columnHeadersCreated = self.columnHeadersCreated or {}
 		self.HeaderTable = newTable
 		self.NextHeader = 1
@@ -5753,72 +5511,70 @@ DF.HeaderCoreFunctions = {
 	end,
 
 	--return which header is current selected and the the order ASC DESC
-	GetSelectedColumn = function (self)
-		return self.columnSelected, self.columnHeadersCreated [self.columnSelected or 1].order
+	GetSelectedColumn = function(self)
+		return self.columnSelected, self.columnHeadersCreated[self.columnSelected or 1].order
 	end,
 	
 	--clean up and rebuild the header following the header options
 	--@self: main header frame
-	Refresh = function (self)
-		--> refresh background frame
-		self:SetBackdrop (self.options.backdrop)
-		self:SetBackdropColor (unpack (self.options.backdrop_color))
-		self:SetBackdropBorderColor (unpack (self.options.backdrop_border_color))
+	Refresh = function(self)
+		--refresh background frame
+		self:SetBackdrop(self.options.backdrop)
+		self:SetBackdropColor(unpack (self.options.backdrop_color))
+		self:SetBackdropBorderColor(unpack (self.options.backdrop_border_color))
 	
-		--> reset all header frames
+		--reset all header frames
 		for i = 1, #self.columnHeadersCreated do
-			local columnHeader = self.columnHeadersCreated [i]
+			local columnHeader = self.columnHeadersCreated[i]
 			columnHeader.InUse = false
 			columnHeader:Hide()
 		end
 	
 		local previousColumnHeader
-		local growDirection = string.lower (self.options.grow_direction)
+		local growDirection = string.lower(self.options.grow_direction)
 	
-		--> update header frames
+		--update header frames
 		local headerSize = #self.HeaderTable
 		for i = 1, headerSize do
-
-			--> get the header button, a new one is created if it doesn't exists yet
+			--get the header button, a new one is created if it doesn't exists yet
 			local columnHeader = self:GetNextHeader()
-			self:UpdateColumnHeader (columnHeader, i)
+			self:UpdateColumnHeader(columnHeader, i)
 			
-			--> grow direction
+			--grow direction
 			if (not previousColumnHeader) then
-				columnHeader:SetPoint ("topleft", self, "topleft", 0, 0)
+				columnHeader:SetPoint("topleft", self, "topleft", 0, 0)
 				
 				if (growDirection == "right") then
 					if (self.options.use_line_separators) then
 						columnHeader.Separator:Show()
-						columnHeader.Separator:SetWidth (self.options.line_separator_width)
-						columnHeader.Separator:SetColorTexture (unpack (self.options.line_separator_color))
+						columnHeader.Separator:SetWidth(self.options.line_separator_width)
+						columnHeader.Separator:SetColorTexture(unpack(self.options.line_separator_color))
 						
 						columnHeader.Separator:ClearAllPoints()
 						if (self.options.line_separator_gap_align) then
-							columnHeader.Separator:SetPoint ("topleft", columnHeader, "topright", 0, 0)
+							columnHeader.Separator:SetPoint("topleft", columnHeader, "topright", 0, 0)
 						else
-							columnHeader.Separator:SetPoint ("topright", columnHeader, "topright", 0, 0)
+							columnHeader.Separator:SetPoint("topright", columnHeader, "topright", 0, 0)
 						end
-						columnHeader.Separator:SetHeight (self.options.line_separator_height)
+						columnHeader.Separator:SetHeight(self.options.line_separator_height)
 					end
 				end
-				
 			else
 				if (growDirection == "right") then
-					columnHeader:SetPoint ("topleft", previousColumnHeader, "topright", self.options.padding, 0)
+					columnHeader:SetPoint("topleft", previousColumnHeader, "topright", self.options.padding, 0)
 
 					if (self.options.use_line_separators) then
 						columnHeader.Separator:Show()
-						columnHeader.Separator:SetWidth (self.options.line_separator_width)
-						columnHeader.Separator:SetColorTexture (unpack (self.options.line_separator_color))
+						columnHeader.Separator:SetWidth(self.options.line_separator_width)
+						columnHeader.Separator:SetColorTexture(unpack (self.options.line_separator_color))
 						
 						columnHeader.Separator:ClearAllPoints()
 						if (self.options.line_separator_gap_align) then
-							columnHeader.Separator:SetPoint ("topleft", columnHeader, "topright", 0, 0)
+							columnHeader.Separator:SetPoint("topleft", columnHeader, "topright", 0, 0)
 						else
-							columnHeader.Separator:SetPoint ("topleft", columnHeader, "topright", 0, 0)
+							columnHeader.Separator:SetPoint("topleft", columnHeader, "topright", 0, 0)
 						end
-						columnHeader.Separator:SetHeight (self.options.line_separator_height)
+						columnHeader.Separator:SetHeight(self.options.line_separator_height)
 						
 						if (headerSize == i) then
 							columnHeader.Separator:Hide()
@@ -5826,84 +5582,81 @@ DF.HeaderCoreFunctions = {
 					end
 					
 				elseif (growDirection == "left") then
-					columnHeader:SetPoint ("topright", previousColumnHeader, "topleft", -self.options.padding, 0)
+					columnHeader:SetPoint("topright", previousColumnHeader, "topleft", -self.options.padding, 0)
 					
 				elseif (growDirection == "bottom") then
-					columnHeader:SetPoint ("topleft", previousColumnHeader, "bottomleft", 0, -self.options.padding)
+					columnHeader:SetPoint("topleft", previousColumnHeader, "bottomleft", 0, -self.options.padding)
 					
 				elseif (growDirection == "top") then
-					columnHeader:SetPoint ("bottomleft", previousColumnHeader, "topleft", 0, self.options.padding)
+					columnHeader:SetPoint("bottomleft", previousColumnHeader, "topleft", 0, self.options.padding)
 				end
 			end
 			
 			previousColumnHeader = columnHeader
 		end
 		
-		self:SetSize (self.HeaderWidth, self.HeaderHeight)
-
+		self:SetSize(self.HeaderWidth, self.HeaderHeight)
 	end,
 	
 	--@self: main header frame
-	UpdateSortArrow = function (self, columnHeader, defaultShown, defaultOrder)
-
+	UpdateSortArrow = function(self, columnHeader, defaultShown, defaultOrder)
 		local options = self.options
 		local order = defaultOrder or columnHeader.order
 		local arrowIcon = columnHeader.Arrow
 		
-		if (type (defaultShown) ~= "boolean") then
+		if (type(defaultShown) ~= "boolean") then
 			arrowIcon:Show()
 		else
-			arrowIcon:SetShown (defaultShown)
+			arrowIcon:SetShown(defaultShown)
 			if (defaultShown) then
-				self:SetBackdropColorForSelectedColumnHeader (columnHeader)
+				self:SetBackdropColorForSelectedColumnHeader(columnHeader)
 			end
 		end
 
-		arrowIcon:SetAlpha (options.arrow_alpha)
+		arrowIcon:SetAlpha(options.arrow_alpha)
 
 		if (order == "ASC") then
-			arrowIcon:SetTexture (options.arrow_up_texture)
-			arrowIcon:SetTexCoord (unpack (options.arrow_up_texture_coords))
-			arrowIcon:SetSize (unpack (options.arrow_up_size))
+			arrowIcon:SetTexture(options.arrow_up_texture)
+			arrowIcon:SetTexCoord(unpack(options.arrow_up_texture_coords))
+			arrowIcon:SetSize(unpack(options.arrow_up_size))
 
 		elseif (order == "DESC") then
-			arrowIcon:SetTexture (options.arrow_down_texture)
-			arrowIcon:SetTexCoord (unpack (options.arrow_down_texture_coords))
-			arrowIcon:SetSize (unpack (options.arrow_down_size))
+			arrowIcon:SetTexture(options.arrow_down_texture)
+			arrowIcon:SetTexCoord(unpack(options.arrow_down_texture_coords))
+			arrowIcon:SetSize(unpack(options.arrow_down_size))
 		end
-
 	end,
 
 	--@self: main header frame
-	UpdateColumnHeader = function (self, columnHeader, headerIndex)
-		local headerData = self.HeaderTable [headerIndex]
+	UpdateColumnHeader = function(self, columnHeader, headerIndex)
+		local headerData = self.HeaderTable[headerIndex]
 		
 		if (headerData.icon) then
-			columnHeader.Icon:SetTexture (headerData.icon)
+			columnHeader.Icon:SetTexture(headerData.icon)
 			
 			if (headerData.texcoord) then
-				columnHeader.Icon:SetTexCoord (unpack (headerData.texcoord))
+				columnHeader.Icon:SetTexCoord(unpack(headerData.texcoord))
 			else
-				columnHeader.Icon:SetTexCoord (0, 1, 0, 1)
+				columnHeader.Icon:SetTexCoord(0, 1, 0, 1)
 			end
 			
-			columnHeader.Icon:SetPoint ("left", columnHeader, "left", self.options.padding, 0)
+			columnHeader.Icon:SetPoint("left", columnHeader, "left", self.options.padding, 0)
 			columnHeader.Icon:Show()
 		end
 		
 		if (headerData.text) then
-			columnHeader.Text:SetText (headerData.text)
+			columnHeader.Text:SetText(headerData.text)
 			
-			--> text options
-			DF:SetFontColor (columnHeader.Text, self.options.text_color)
-			DF:SetFontSize (columnHeader.Text, self.options.text_size)
-			DF:SetFontOutline (columnHeader.Text, self.options.text_shadow)
+			--text options
+			DF:SetFontColor(columnHeader.Text, self.options.text_color)
+			DF:SetFontSize(columnHeader.Text, self.options.text_size)
+			DF:SetFontOutline(columnHeader.Text, self.options.text_shadow)
 			
-			--> point
+			--point
 			if (not headerData.icon) then
-				columnHeader.Text:SetPoint ("left", columnHeader, "left", self.options.padding, 0)
+				columnHeader.Text:SetPoint("left", columnHeader, "left", self.options.padding, 0)
 			else
-				columnHeader.Text:SetPoint ("left", columnHeader.Icon, "right", self.options.padding, 0)
+				columnHeader.Text:SetPoint("left", columnHeader.Icon, "right", self.options.padding, 0)
 			end
 			
 			columnHeader.Text:Show()
@@ -5914,43 +5667,43 @@ DF.HeaderCoreFunctions = {
 
 		if (headerData.canSort) then
 			columnHeader.order = "DESC"
-			columnHeader.Arrow:SetTexture (self.options.arrow_up_texture)
+			columnHeader.Arrow:SetTexture(self.options.arrow_up_texture)
 		else
 			columnHeader.Arrow:Hide()
 		end
 
 		if (headerData.selected) then
 			columnHeader.Arrow:Show()
-			columnHeader.Arrow:SetAlpha (.843)
-			self:UpdateSortArrow (columnHeader, true, columnHeader.order)
+			columnHeader.Arrow:SetAlpha(.843)
+			self:UpdateSortArrow(columnHeader, true, columnHeader.order)
 			self.columnSelected = headerIndex
 		else
 			if (headerData.canSort) then
-				self:UpdateSortArrow (columnHeader, false, columnHeader.order)
+				self:UpdateSortArrow(columnHeader, false, columnHeader.order)
 			end
 		end
-		
-		--> size
+
+		--size
 		if (headerData.width) then
-			columnHeader:SetWidth (headerData.width)
+			columnHeader:SetWidth(headerData.width)
 		end
 		if (headerData.height) then
-			columnHeader:SetHeight (headerData.height)
+			columnHeader:SetHeight(headerData.height)
 		end
-		
-		columnHeader.XPosition = self.HeaderWidth-- + self.options.padding
-		columnHeader.YPosition = self.HeaderHeight-- + self.options.padding
-		
+
+		columnHeader.XPosition = self.HeaderWidth -- + self.options.padding
+		columnHeader.YPosition = self.HeaderHeight -- + self.options.padding
+
 		columnHeader.columnAlign = headerData.align or "left"
 		columnHeader.columnOffset = headerData.offset or 0
-		
-		--> add the header piece size to the total header size
-		local growDirection = string.lower (self.options.grow_direction)
-		
+
+		--add the header piece size to the total header size
+		local growDirection = string.lower(self.options.grow_direction)
+
 		if (growDirection == "right" or growDirection == "left") then
 			self.HeaderWidth = self.HeaderWidth + columnHeader:GetWidth() + self.options.padding
 			self.HeaderHeight = math.max (self.HeaderHeight, columnHeader:GetHeight())
-			
+
 		elseif (growDirection == "top" or growDirection == "bottom") then
 			self.HeaderWidth =  math.max (self.HeaderWidth, columnHeader:GetWidth())
 			self.HeaderHeight = self.HeaderHeight + columnHeader:GetHeight() + self.options.padding
@@ -5962,63 +5715,63 @@ DF.HeaderCoreFunctions = {
 	
 	--reset column header backdrop
 	--@self: main header frame
-	ResetColumnHeaderBackdrop = function (self, columnHeader)
-		columnHeader:SetBackdrop (self.options.header_backdrop)
-		columnHeader:SetBackdropColor (unpack (self.options.header_backdrop_color))
-		columnHeader:SetBackdropBorderColor (unpack (self.options.header_backdrop_border_color))
+	ResetColumnHeaderBackdrop = function(self, columnHeader)
+		columnHeader:SetBackdrop(self.options.header_backdrop)
+		columnHeader:SetBackdropColor(unpack(self.options.header_backdrop_color))
+		columnHeader:SetBackdropBorderColor(unpack(self.options.header_backdrop_border_color))
 	end,
 
 	--@self: main header frame
-	SetBackdropColorForSelectedColumnHeader = function (self, columnHeader)
-		columnHeader:SetBackdropColor (unpack (self.options.header_backdrop_color_selected))
+	SetBackdropColorForSelectedColumnHeader = function(self, columnHeader)
+		columnHeader:SetBackdropColor(unpack(self.options.header_backdrop_color_selected))
 	end,
 
 	--clear the column header
 	--@self: main header frame
-	ClearColumnHeader = function (self, columnHeader)
-		columnHeader:SetSize (self.options.header_width, self.options.header_height)
-		self:ResetColumnHeaderBackdrop (columnHeader)
+	ClearColumnHeader = function(self, columnHeader)
+		columnHeader:SetSize(self.options.header_width, self.options.header_height)
+		self:ResetColumnHeaderBackdrop(columnHeader)
 		
 		columnHeader:ClearAllPoints()
 		
-		columnHeader.Icon:SetTexture ("")
+		columnHeader.Icon:SetTexture("")
 		columnHeader.Icon:Hide()
-		columnHeader.Text:SetText ("")
+		columnHeader.Text:SetText("")
 		columnHeader.Text:Hide()
 	end,
 	
 	--get the next column header, create one if doesn't exists
 	--@self: main header frame
-	GetNextHeader = function (self)
+	GetNextHeader = function(self)
 		local nextHeader = self.NextHeader
-		local columnHeader = self.columnHeadersCreated [nextHeader]
+		local columnHeader = self.columnHeadersCreated[nextHeader]
 		
 		if (not columnHeader) then
 			--create a new column header
-			local newHeader = CreateFrame ("button", "$parentHeaderIndex" .. nextHeader, self,"BackdropTemplate")
-			newHeader:SetScript ("OnClick", DF.HeaderFunctions.OnClick)
+			local newHeader = CreateFrame("button", "$parentHeaderIndex" .. nextHeader, self, "BackdropTemplate")
+			newHeader:SetScript("OnClick", DF.HeaderFunctions.OnClick)
 
 			--header icon
-			DF:CreateImage (newHeader, "", self.options.header_height, self.options.header_height, "ARTWORK", nil, "Icon", "$parentIcon")
+			DF:CreateImage(newHeader, "", self.options.header_height, self.options.header_height, "ARTWORK", nil, "Icon", "$parentIcon")
 			--header separator
-			DF:CreateImage (newHeader, "", 1, 1, "ARTWORK", nil, "Separator", "$parentSeparator")
+			DF:CreateImage(newHeader, "", 1, 1, "ARTWORK", nil, "Separator", "$parentSeparator")
 			--header name text
-			DF:CreateLabel (newHeader, "", self.options.text_size, self.options.text_color, "GameFontNormal", "Text", "$parentText", "ARTWORK")
+			DF:CreateLabel(newHeader, "", self.options.text_size, self.options.text_color, "GameFontNormal", "Text", "$parentText", "ARTWORK")
 			--header selected and order icon
-			DF:CreateImage (newHeader, self.options.arrow_up_texture, 12, 12, "ARTWORK", nil, "Arrow", "$parentArrow")
+			DF:CreateImage(newHeader, self.options.arrow_up_texture, 12, 12, "ARTWORK", nil, "Arrow", "$parentArrow")
 
-			newHeader.Arrow:SetPoint ("right", newHeader, "right", -1, 0)
+			newHeader.Arrow:SetPoint("right", newHeader, "right", -1, 0)
 
 			newHeader.Separator:Hide()
 			newHeader.Arrow:Hide()
 
-			self:UpdateSortArrow (newHeader, false, "DESC")
+			self:UpdateSortArrow(newHeader, false, "DESC")
 			
-			tinsert (self.columnHeadersCreated, newHeader)
+			tinsert(self.columnHeadersCreated, newHeader)
 			columnHeader = newHeader
 		end
 		
-		self:ClearColumnHeader (columnHeader)
+		self:ClearColumnHeader(columnHeader)
 		self.NextHeader = self.NextHeader + 1
 		return columnHeader
 	end,
@@ -6062,21 +5815,21 @@ local default_header_options = {
 	line_separator_gap_align = false,
 }
 
-function DF:CreateHeader (parent, headerTable, options, frameName)
-	local f = CreateFrame ("frame", frameName or "$parentHeaderLine", parent,"BackdropTemplate")
+function DF:CreateHeader(parent, headerTable, options, frameName)
+	local newHeader = CreateFrame("frame", frameName or "$parentHeaderLine", parent, "BackdropTemplate")
 	
-	DF:Mixin (f, DF.OptionsFunctions)
-	DF:Mixin (f, DF.HeaderCoreFunctions)
+	DF:Mixin(newHeader, DF.OptionsFunctions)
+	DF:Mixin(newHeader, DF.HeaderCoreFunctions)
 	
-	f:BuildOptionsTable (default_header_options, options)
+	newHeader:BuildOptionsTable(default_header_options, options)
 	
-	f:SetBackdrop (f.options.backdrop)
-	f:SetBackdropColor (unpack (f.options.backdrop_color))
-	f:SetBackdropBorderColor (unpack (f.options.backdrop_border_color))
+	newHeader:SetBackdrop(newHeader.options.backdrop)
+	newHeader:SetBackdropColor(unpack(newHeader.options.backdrop_color))
+	newHeader:SetBackdropBorderColor(unpack(newHeader.options.backdrop_border_color))
 	
-	f:SetHeaderTable (headerTable)
+	newHeader:SetHeaderTable(headerTable)
 
-	return f
+	return newHeader
 end
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -6092,130 +5845,150 @@ local default_radiogroup_options = {
 }
 
 DF.RadioGroupCoreFunctions = {
-	RadioOnClick = function (self, fixedParam, value)
-		--turn off all checkboxes
-		local frameList = {self:GetParent():GetChildren()}
-		for _, checkbox in ipairs (frameList) do
-			checkbox = checkbox.GetCapsule and checkbox:GetCapsule() or checkbox
-			checkbox:SetValue (false)
-		end
-		
-		--turn on the clicked checkbox
-		self:SetValue (true)
-		
-		--callback
-		DF:QuickDispatch (self._set, fixedParam)
-	end,
-	
 	Disable = function (self)
-		local frameList = {self:GetChildren()}
-		for _, checkbox in ipairs (frameList) do
+		local frameList = self:GetAllCheckboxes()
+		for _, checkbox in ipairs(frameList) do
 			checkbox = checkbox.GetCapsule and checkbox:GetCapsule() or checkbox
 			checkbox:Disable()
 		end
 	end,
 	
 	Enable = function (self)
-		local frameList = {self:GetChildren()}
-		for _, checkbox in ipairs (frameList) do
+		local frameList = self:GetAllCheckboxes()
+		for _, checkbox in ipairs(frameList) do
 			checkbox = checkbox.GetCapsule and checkbox:GetCapsule() or checkbox
 			checkbox:Enable()
 		end
 	end,
 	
-	DeselectAll = function (self)
-		local frameList = {self:GetChildren()}
-		for _, checkbox in ipairs (frameList) do
+	DeselectAll = function(self)
+		local frameList = self:GetAllCheckboxes()
+		for _, checkbox in ipairs(frameList) do
 			checkbox = checkbox.GetCapsule and checkbox:GetCapsule() or checkbox
-			checkbox:SetValue (false)
+			checkbox:SetValue(false)
 		end
 	end,
 
-	FadeIn = function (self)
-		local frameList = {self:GetChildren()}
-		for _, checkbox in ipairs (frameList) do
-			checkbox:SetAlpha (1)
+	FadeIn = function(self)
+		local frameList = self:GetAllCheckboxes()
+		for _, checkbox in ipairs(frameList) do
+			checkbox:SetAlpha(1)
 		end
 	end,
 	
-	FadeOut = function (self)
-		local frameList = {self:GetChildren()}
-		for _, checkbox in ipairs (frameList) do
-			checkbox:SetAlpha (.7)
+	FadeOut = function(self)
+		local frameList = self:GetAllCheckboxes()
+		for _, checkbox in ipairs(frameList) do
+			checkbox:SetAlpha(.7)
 		end
 	end,
 	
-	SetFadeState = function (self, state)
+	SetFadeState = function(self, state)
 		if (state) then
 			self:FadeIn()
 		else
 			self:FadeOut()
 		end
 	end,
-	
-	CreateCheckbox = function (self)
-		local checkbox = DF:CreateSwitch (self, function()end, false, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, DF:GetTemplate ("switch", "OPTIONS_CHECKBOX_BRIGHT_TEMPLATE"))
-		checkbox:SetAsCheckBox()
-		checkbox.Icon = DF:CreateImage (checkbox, "", 16, 16)
-		checkbox.Label = DF:CreateLabel (checkbox, "")
-		
+
+	GetAllCheckboxes = function(self)
+		return {self:GetChildren()}
+	end,
+
+	GetCheckbox = function(self, checkboxId)
+		local allCheckboxes = self:GetAllCheckboxes()
+		local checkbox = allCheckboxes[checkboxId]
+		if (not checkbox) then
+			checkbox = self:CreateCheckbox()
+		end
 		return checkbox
 	end,
 	
-	RefreshCheckbox = function (self, checkbox, optionTable)
-		checkbox = checkbox.GetCapsule and checkbox:GetCapsule() or checkbox
+	CreateCheckbox = function(self)
+		local checkbox = DF:CreateSwitch(self, function()end, false, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, DF:GetTemplate ("switch", "OPTIONS_CHECKBOX_BRIGHT_TEMPLATE"))
+		checkbox:SetAsCheckBox()
+		checkbox.Icon = DF:CreateImage(checkbox, "", 16, 16)
+		checkbox.Label = DF:CreateLabel(checkbox, "")
 		
-		local setFunc = self.options.is_radio and self.RadioOnClick or optionTable.set
-		checkbox:SetSwitchFunction (setFunc)
-		checkbox._set = setFunc
-		checkbox:SetFixedParameter (optionTable.param)
-		
-		local isChecked = DF:Dispatch (optionTable.get)
-		checkbox:SetValue (isChecked)
-		
-		checkbox.Label:SetText (optionTable.name)
-		
-		if (optionTable.texture) then
-			checkbox.Icon:SetTexture (optionTable.texture)
-			checkbox.Icon:SetPoint ("left", checkbox, "right", 2, 0)
-			checkbox.Label:SetPoint ("left", checkbox.Icon, "right", 2, 0)
-			
-			if (optionTable.texcoord) then
-				checkbox.Icon:SetTexCoord (unpack (optionTable.texcoord))
-			else
-				checkbox.Icon:SetTexCoord (0, 1, 0, 1)
-			end
-		else
-			checkbox.Icon:SetTexture ("")
-			checkbox.Label:SetPoint ("left", checkbox, "right", 2, 0)
+		return checkbox
+	end,
+
+	ResetAllCheckboxes = function(self)
+		local radioCheckboxes = self:GetAllCheckboxes()
+		for i = 1, #radioCheckboxes do
+			local checkBox = radioCheckboxes[i]
+			checkBox:Hide()
 		end
 	end,
 
-	Refresh = function (self)
-		local radioOptions = self.RadioOptionsTable
-		local radioCheckboxes = {self:GetChildren()}
+	--if the list of checkboxes are a radio group
+	RadioOnClick = function(checkbox, fixedParam, value)
+		--turn off all checkboxes
+		checkbox:GetParent():DeselectAll()
 		
-		for _, checkbox in ipairs (radioCheckboxes) do
-			checkbox:Hide()
+		--turn on the clicked checkbox
+		checkbox:SetValue(true)
+		
+		--callback
+		if (checkbox._callback) then
+			DF:QuickDispatch(checkbox._callback, fixedParam, checkbox._optionid)
 		end
+	end,
+	
+	RefreshCheckbox = function(self, checkbox, optionTable, optionId)
+		checkbox = checkbox.GetCapsule and checkbox:GetCapsule() or checkbox
 		
-		for radioIndex, optionsTable in ipairs (radioOptions) do
-			local checkbox = radioCheckboxes [radioIndex]
-			if (not checkbox) then
-				checkbox = self:CreateCheckbox()
+		local setFunc = self.options.is_radio and self.RadioOnClick or optionTable.set
+		checkbox:SetSwitchFunction(setFunc)
+		checkbox._callback = optionTable.callback
+		checkbox._set = self.options.is_radio and optionTable.callback or optionTable.set
+		checkbox._optionid = optionId
+		checkbox:SetFixedParameter(optionTable.param or optionId)
+		
+		local isChecked = type(optionTable.get) == "function" and DF:Dispatch(optionTable.get) or false
+		checkbox:SetValue(isChecked)
+		
+		checkbox.Label:SetText(optionTable.name)
+		
+		if (optionTable.texture) then
+			checkbox.Icon:SetTexture(optionTable.texture)
+			checkbox.Icon:SetPoint("left", checkbox, "right", 2, 0)
+			checkbox.Label:SetPoint("left", checkbox.Icon, "right", 2, 0)
+			
+			if (optionTable.texcoord) then
+				checkbox.Icon:SetTexCoord(unpack(optionTable.texcoord))
+			else
+				checkbox.Icon:SetTexCoord(0, 1, 0, 1)
 			end
-			checkbox.OptionID = radioIndex
+		else
+			checkbox.Icon:SetTexture("")
+			checkbox.Label:SetPoint("left", checkbox, "right", 2, 0)
+		end
+	end,
+
+	Refresh = function(self)
+		self:ResetAllCheckboxes()
+		local radioOptions = self:GetOptions()
+		local radioCheckboxes = self:GetAllCheckboxes()
+
+		for optionId, optionsTable in ipairs(radioOptions) do
+			local checkbox = self:GetCheckbox(optionId)
+			checkbox.OptionID = optionId
 			checkbox:Show()
-			self:RefreshCheckbox (checkbox, optionsTable)
+			self:RefreshCheckbox(checkbox, optionsTable, optionId)
 		end
 		
 		--sending false to automatically use the radio group children
-		self:ArrangeFrames (false, self.AnchorOptions)
+		self:ArrangeFrames(false, self.AnchorOptions)
 	end,
 	
-	SetOptions = function (self, radioOptions)
+	SetOptions = function(self, radioOptions)
 		self.RadioOptionsTable = radioOptions
 		self:Refresh()
+	end,
+
+	GetOptions = function(self)
+		return self.RadioOptionsTable
 	end,
 }
 
@@ -6227,7 +6000,7 @@ DF.RadioGroupCoreFunctions = {
 	options: override options for default_radiogroup_options table
 	anchorOptions: override options for default_framelayout_options table
 --]=]
-function DF:CreateRadionGroup (parent, radioOptions, name, options, anchorOptions)
+function DF:CreateCheckboxGroup(parent, radioOptions, name, options, anchorOptions)
 	local f = CreateFrame ("frame", name, parent, "BackdropTemplate")
 	
 	DF:Mixin (f, DF.OptionsFunctions)
@@ -6252,6 +6025,16 @@ function DF:CreateRadionGroup (parent, radioOptions, name, options, anchorOption
 	f:SetOptions (radioOptions)
 
 	return f
+end
+
+function DF:CreateRadionGroup(parent, radioOptions, name, options, anchorOptions) --alias for miss spelled old function
+	return DF:CreateRadioGroup(parent, radioOptions, name, options, anchorOptions)
+end
+
+function DF:CreateRadioGroup(parent, radioOptions, name, options, anchorOptions)
+	options = options or {}
+	options.is_radio = true
+	return DF:CreateCheckboxGroup(parent, radioOptions, name, options, anchorOptions)
 end
 
 
@@ -6536,8 +6319,8 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 			pvptalent = {x2StartAt, -70},
 			group = {x2StartAt, -210},
 			affix = {x2StartAt, -270},
-			encounter_ids = {x2StartAt, -400},
-			map_ids = {x2StartAt, -440},
+			encounter_ids = {x2StartAt, -420},
+			map_ids = {x2StartAt, -460},
 		}
 		
 		local editingLabel = DF:CreateLabel (f, "Load Conditions For:")
@@ -6586,7 +6369,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 				})
 			end
 			
-			local classGroup = DF:CreateRadionGroup (f, classes, name, {width = 200, height = 200, title = "Character Class"}, {offset_x = 130, amount_per_line = 3})
+			local classGroup = DF:CreateCheckboxGroup (f, classes, name, {width = 200, height = 200, title = "Character Class"}, {offset_x = 130, amount_per_line = 3})
 			classGroup:SetPoint ("topleft", f, "topleft", anchorPositions.class [1], anchorPositions.class [2])
 			classGroup.DBKey = "class"
 			tinsert (f.AllRadioGroups, classGroup)
@@ -6604,7 +6387,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 						texture = specIcon,
 					})
 				end
-				local specGroup = DF:CreateRadionGroup (f, specs, name, {width = 200, height = 200, title = "Character Spec"}, {offset_x = 130, amount_per_line = 4})
+				local specGroup = DF:CreateCheckboxGroup (f, specs, name, {width = 200, height = 200, title = "Character Spec"}, {offset_x = 130, amount_per_line = 4})
 				specGroup:SetPoint ("topleft", f, "topleft", anchorPositions.spec [1], anchorPositions.spec [2])
 				specGroup.DBKey = "spec"
 				tinsert (f.AllRadioGroups, specGroup)
@@ -6620,7 +6403,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 					get = function() return f.OptionsTable.race [raceTable.FileString] end,
 				})
 			end
-			local raceGroup = DF:CreateRadionGroup (f, raceList, name, {width = 200, height = 200, title = "Character Race"})
+			local raceGroup = DF:CreateCheckboxGroup (f, raceList, name, {width = 200, height = 200, title = "Character Race"})
 			raceGroup:SetPoint ("topleft", f, "topleft", anchorPositions.race [1], anchorPositions.race [2])
 			raceGroup.DBKey = "race"
 			tinsert (f.AllRadioGroups, raceGroup)
@@ -6637,7 +6420,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 						texture = talentTable.Texture,
 					})
 				end
-				local talentGroup = DF:CreateRadionGroup (f, talentList, name, {width = 200, height = 200, title = "Characer Talents"}, {offset_x = 150, amount_per_line = 3})
+				local talentGroup = DF:CreateCheckboxGroup (f, talentList, name, {width = 200, height = 200, title = "Characer Talents"}, {offset_x = 150, amount_per_line = 3})
 				talentGroup:SetPoint ("topleft", f, "topleft", anchorPositions.talent [1], anchorPositions.talent [2])
 				talentGroup.DBKey = "talent"
 				tinsert (f.AllRadioGroups, talentGroup)
@@ -6737,7 +6520,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 						texture = talentTable.Texture,
 					})
 				end
-				local pvpTalentGroup = DF:CreateRadionGroup (f, pvpTalentList, name, {width = 200, height = 200, title = "Characer PvP Talents"}, {offset_x = 150, amount_per_line = 3})
+				local pvpTalentGroup = DF:CreateCheckboxGroup (f, pvpTalentList, name, {width = 200, height = 200, title = "Characer PvP Talents"}, {offset_x = 150, amount_per_line = 3})
 				pvpTalentGroup:SetPoint ("topleft", f, "topleft", anchorPositions.pvptalent [1], anchorPositions.pvptalent [2])
 				pvpTalentGroup.DBKey = "pvptalent"
 				tinsert (f.AllRadioGroups, pvpTalentGroup)
@@ -6835,7 +6618,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 					get = function() return f.OptionsTable.group [groupTable.ID] or f.OptionsTable.group [groupTable.ID .. ""] end,
 				})
 			end
-			local groupTypesGroup = DF:CreateRadionGroup (f, groupTypes, name, {width = 200, height = 200, title = "Group Types"})
+			local groupTypesGroup = DF:CreateCheckboxGroup (f, groupTypes, name, {width = 200, height = 200, title = "Group Types"})
 			groupTypesGroup:SetPoint ("topleft", f, "topleft", anchorPositions.group [1], anchorPositions.group [2])
 			groupTypesGroup.DBKey = "group"
 			tinsert (f.AllRadioGroups, groupTypesGroup)
@@ -6850,7 +6633,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 					get = function() return f.OptionsTable.role [roleTable.ID] or f.OptionsTable.role [roleTable.ID .. ""] end,
 				})
 			end
-			local roleTypesGroup = DF:CreateRadionGroup (f, roleTypes, name, {width = 200, height = 200, title = "Role Types"})
+			local roleTypesGroup = DF:CreateCheckboxGroup (f, roleTypes, name, {width = 200, height = 200, title = "Role Types"})
 			roleTypesGroup:SetPoint ("topleft", f, "topleft", anchorPositions.role [1], anchorPositions.role [2])
 			roleTypesGroup.DBKey = "role"
 			tinsert (f.AllRadioGroups, roleTypesGroup)
@@ -6870,7 +6653,7 @@ function DF:OpenLoadConditionsPanel (optionsTable, callback, frameOptions)
 						})
 					end
 				end
-				local affixTypesGroup = DF:CreateRadionGroup (f, affixes, name, {width = 200, height = 200, title = "M+ Affixes"})
+				local affixTypesGroup = DF:CreateCheckboxGroup (f, affixes, name, {width = 200, height = 200, title = "M+ Affixes"})
 				affixTypesGroup:SetPoint ("topleft", f, "topleft", anchorPositions.affix [1], anchorPositions.affix [2])
 				affixTypesGroup.DBKey = "affix"
 				tinsert (f.AllRadioGroups, affixTypesGroup)
@@ -7277,9 +7060,9 @@ function DF:BuildStatusbarAuthorInfo (f, addonBy, authorsNameString)
 	discordTextEntry:SetPoint ("left", discordLabel, "right", 2, 0)
 	
 	--format
-	authorName:SetAlpha (.4)
-	discordLabel:SetAlpha (.4)
-	discordTextEntry:SetAlpha (.4)
+	authorName:SetAlpha (.6)
+	discordLabel:SetAlpha (.6)
+	discordTextEntry:SetAlpha (.6)
 	discordTextEntry:SetBackdropBorderColor (1, 1, 1, 0)
 	
 	discordTextEntry:SetHook ("OnEditFocusGained", function()
@@ -7335,15 +7118,30 @@ end
 --]=]
 
 DF.StatusBarFunctions = {
-	
-	GetTexture = function (self)
-		return self.barTexture:GetTexture()
-	end,
-	
 	SetTexture = function (self, texture)
 		self.barTexture:SetTexture (texture)
 	end,
-	
+
+	GetTexture = function (self)
+		return self.barTexture:GetTexture()
+	end,
+
+	SetAtlas = function(self, atlasName)
+		self.barTexture:SetAtlas(atlasName)
+	end,
+
+	GetAtlas = function(self)
+		self.barTexture:GetAtlas()
+	end,
+
+	SetTexCoord = function(self, ...)
+		return self.barTexture:SetTexCoord(...)
+	end,
+
+	GetTexCoord = function(self)
+		return self.barTexture:GetTexCoord()
+	end,
+
 	SetColor = function (self, r, g, b, a)
 		r, g, b, a = DF:ParseColors (r, g, b, a)
 		self:SetStatusBarColor (r, g, b, a)
@@ -7352,7 +7150,151 @@ DF.StatusBarFunctions = {
 	GetColor = function (self)
 		return self:GetStatusBarColor()
 	end,
-	
+
+	SetMaskTexture = function(self, ...)
+		if (not self:HasTextureMask()) then
+			return
+		end
+		self.barTextureMask:SetTexture(...)
+	end,
+
+	GetMaskTexture = function(self)
+		if (not self:HasTextureMask()) then
+			return
+		end
+		self.barTextureMask:GetTexture()
+	end,
+
+	--SetMaskTexCoord = function(self, ...) --MaskTexture doesn't not support texcoord
+	--	if (not self:HasTextureMask()) then
+	--		return
+	--	end
+	--	self.barTextureMask:SetTexCoord(...)
+	--end,
+
+	--GetMaskTexCoord = function(self, ...)
+	--	if (not self:HasTextureMask()) then
+	--		return
+	--	end
+	--	self.barTextureMask:GetTexCoord()
+	--end,
+
+	SetMaskAtlas = function(self, atlasName)
+		if (not self:HasTextureMask()) then
+			return
+		end
+		self.barTextureMask:SetAtlas(atlasName)
+	end,
+
+	GetMaskAtlas = function(self)
+		if (not self:HasTextureMask()) then
+			return
+		end
+		self.barTextureMask:GetAtlas()
+	end,
+
+	AddMaskTexture = function(self, object)
+		if (not self:HasTextureMask()) then
+			return
+		end
+		if (object.GetObjectType and object:GetObjectType() == "Texture") then
+			object:AddMaskTexture(self.barTextureMask)
+		else
+			DF:Msg("Invalid 'Texture' to object:AddMaskTexture(Texture)", debugstack())
+		end
+	end,
+
+	CreateTextureMask = function(self)
+		local barTexture = self:GetStatusBarTexture() or self.barTexture
+		if (not barTexture) then
+			DF:Msg("Object doesn't not have a statubar texture, create one and object:SetStatusBarTexture(textureObject)", debugstack())
+			return
+		end
+
+		if (self.barTextureMask) then
+			return self.barTextureMask
+		end
+
+		--statusbar texture mask
+		self.barTextureMask = self:CreateMaskTexture(nil, "artwork")
+		self.barTextureMask:SetAllPoints()
+		self.barTextureMask:SetTexture([[Interface\CHATFRAME\CHATFRAMEBACKGROUND]])
+
+		--border texture
+		self.barBorderTextureForMask = self:CreateTexture(nil, "artwork", nil, 7)
+		self.barBorderTextureForMask:SetAllPoints()
+		self.barBorderTextureForMask:Hide()
+
+		barTexture:AddMaskTexture(self.barTextureMask)
+
+		return self.barTextureMask
+	end,
+
+	HasTextureMask = function(self)
+		if (not self.barTextureMask) then
+			DF:Msg("Object doesn't not have a texture mask, create one using object:CreateTextureMask()", debugstack())
+			return false
+		end
+		return true
+	end,
+
+	SetBorderTexture = function(self, texture)
+		if (not self:HasTextureMask()) then
+			return
+		end
+
+		texture = texture or ""
+
+		self.barBorderTextureForMask:SetTexture(texture)
+
+		if (texture == "") then
+			self.barBorderTextureForMask:Hide()
+		else
+			self.barBorderTextureForMask:Show()
+		end
+	end,
+
+	GetBorderTexture = function(self)
+		if (not self:HasTextureMask()) then
+			return
+		end
+		return self.barBorderTextureForMask:GetTexture()
+	end,
+
+	SetBorderColor = function(self, r, g, b, a)
+		r, g, b, a = DF:ParseColors(r, g, b, a)
+
+		if (self.barBorderTextureForMask and self.barBorderTextureForMask:IsShown()) then
+			self.barBorderTextureForMask:SetVertexColor(r, g, b, a)
+
+			--if there's a square border on the widget, remove its color
+			if (self.border and self.border.UpdateSizes and self.border.SetVertexColor) then
+				self.border:SetVertexColor(0, 0, 0, 0)
+			end
+
+			return
+		end
+
+		if (self.border and self.border.UpdateSizes and self.border.SetVertexColor) then
+			self.border:SetVertexColor(r, g, b, a)
+
+			--adjust the mask border texture ask well in case the user set the mask color texture before setting a texture on it
+			if (self.barBorderTextureForMask) then
+				self.barBorderTextureForMask:SetVertexColor(r, g, b, a)
+			end
+			return
+		end
+	end,
+
+	GetBorderColor = function(self)
+		if (self.barBorderTextureForMask and self.barBorderTextureForMask:IsShown()) then
+			return self.barBorderTextureForMask:GetVertexColor()
+		end
+
+		if (self.border and self.border.UpdateSizes and self.border.GetVertexColor) then
+			return self.border:GetVertexColor()
+		end
+	end,
 }
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -7763,6 +7705,8 @@ function DF:CreateHealthBar (parent, name, settingsOverride)
 	--> mixins
 	DF:Mixin (healthBar, healthBarMetaFunctions)
 	DF:Mixin (healthBar, DF.StatusBarFunctions)
+
+	healthBar:CreateTextureMask()
 	
 	--> settings and hooks
 	local settings = DF.table.copy ({}, healthBarMetaFunctions.Settings)
@@ -8019,7 +7963,7 @@ function DF:CreatePowerBar (parent, name, settingsOverride)
 			--artwork
 			powerBar.barTexture = powerBar:CreateTexture (nil, "artwork")
 			powerBar:SetStatusBarTexture (powerBar.barTexture)
-			
+
 			--overlay
 			powerBar.percentText = powerBar:CreateFontString (nil, "overlay", "GameFontNormal")
 		end
@@ -8027,6 +7971,8 @@ function DF:CreatePowerBar (parent, name, settingsOverride)
 	--> mixins
 	DF:Mixin (powerBar, DF.PowerFrameFunctions)
 	DF:Mixin (powerBar, DF.StatusBarFunctions)
+
+	powerBar:CreateTextureMask()
 	
 	--> settings and hooks
 	local settings = DF.table.copy ({}, DF.PowerFrameFunctions.Settings)
@@ -8341,7 +8287,7 @@ DF.CastFrameFunctions = {
 	end,
 	
 	HasScheduledHide = function (self)
-		return self.scheduledHideTime and not self.scheduledHideTime._cancelled
+		return self.scheduledHideTime and not self.scheduledHideTime:IsCancelled()
 	end,
 	
 	CancelScheduleToHide = function (self)
@@ -8353,7 +8299,7 @@ DF.CastFrameFunctions = {
 	--> after an interrupt, do not immediately hide the cast bar, let it up for short amount of time to give feedback to the player
 	ScheduleToHide = function (self, delay)
 		if (not delay) then
-			if (self.scheduledHideTime and not self.scheduledHideTime._cancelled) then
+			if (self.scheduledHideTime and not self.scheduledHideTime:IsCancelled()) then
 				self.scheduledHideTime:Cancel()
 			end
 			
@@ -8362,7 +8308,7 @@ DF.CastFrameFunctions = {
 		end
 
 		--> already have a scheduled timer?
-		if (self.scheduledHideTime and not self.scheduledHideTime._cancelled) then
+		if (self.scheduledHideTime and not self.scheduledHideTime:IsCancelled()) then
 			self.scheduledHideTime:Cancel()
 		end
 		
@@ -8675,12 +8621,7 @@ DF.CastFrameFunctions = {
 	end,
 	
 	UpdateChannelInfo = function (self, unit, ...)
-		local name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID
-		if not IS_WOW_PROJECT_CLASSIC_TBC then
-			name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID = UnitChannelInfo (unit)
-		else
-			name, text, texture, startTime, endTime, isTradeSkill, spellID = UnitChannelInfo (unit)
-		end
+		local name, text, texture, startTime, endTime, isTradeSkill, notInterruptible, spellID = UnitChannelInfo (unit)
 
 		--> is valid?
 		if (not self:IsValid (unit, name, isTradeSkill, true)) then
@@ -8998,27 +8939,21 @@ function DF:CreateCastBar (parent, name, settingsOverride)
 			--this should make Plater core and Plater scripts made by users compatible with the new unit frame made on the framework
 		
 			--background
-			castBar.background = castBar:CreateTexture (nil, "background")
-			castBar.background:SetDrawLayer ("background", -6)
-			
-			castBar.extraBackground = castBar:CreateTexture (nil, "background")
-			castBar.extraBackground:SetDrawLayer ("background", -5)
+			castBar.background = castBar:CreateTexture (nil, "background", nil, -6)
+			castBar.extraBackground = castBar:CreateTexture (nil, "background", nil, -5)
 			
 			--overlay
 			castBar.Text = castBar:CreateFontString (nil, "overlay", "SystemFont_Shadow_Small")
-			castBar.Text:SetPoint ("center", 0, 0)
 			castBar.Text:SetDrawLayer ("overlay", 1)
+			castBar.Text:SetPoint ("center", 0, 0)
 			
-			castBar.BorderShield = castBar:CreateTexture (nil, "overlay")
-			castBar.BorderShield:SetDrawLayer ("overlay", 5)
+			castBar.BorderShield = castBar:CreateTexture (nil, "overlay", nil, 5)
 			castBar.BorderShield:Hide()
 			
-			castBar.Icon = castBar:CreateTexture (nil, "overlay")
-			castBar.Icon:SetDrawLayer ("overlay", 4)
+			castBar.Icon = castBar:CreateTexture (nil, "overlay", nil, 4)
 			castBar.Icon:Hide()
 			
-			castBar.Spark = castBar:CreateTexture (nil, "overlay")
-			castBar.Spark:SetDrawLayer ("overlay", 3)
+			castBar.Spark = castBar:CreateTexture (nil, "overlay", nil, 3)
 			castBar.Spark:SetBlendMode ("ADD")
 			
 			--time left on the cast
@@ -9026,7 +8961,7 @@ function DF:CreateCastBar (parent, name, settingsOverride)
 			castBar.percentText:SetDrawLayer ("overlay", 7)
 			
 			--statusbar texture
-			castBar.barTexture = castBar:CreateTexture (nil, "artwork")
+			castBar.barTexture = castBar:CreateTexture (nil, "artwork", nil, -6)
 			castBar:SetStatusBarTexture (castBar.barTexture)
 			
 			--animations fade in and out
@@ -9039,8 +8974,7 @@ function DF:CreateCastBar (parent, name, settingsOverride)
 			castBar.fadeInAnimation = fadeInAnimationHub
 			
 			--animatios flash
-			local flashTexture = castBar:CreateTexture (nil, "overlay")
-			flashTexture:SetDrawLayer ("overlay", 7)
+			local flashTexture = castBar:CreateTexture (nil, "overlay", nil, 7)
 			flashTexture:SetColorTexture (1, 1, 1, 1)
 			flashTexture:SetAllPoints()
 			flashTexture:SetAlpha (0)
@@ -9057,6 +8991,11 @@ function DF:CreateCastBar (parent, name, settingsOverride)
 	--> mixins
 	DF:Mixin (castBar, DF.CastFrameFunctions)
 	DF:Mixin (castBar, DF.StatusBarFunctions)
+
+	castBar:CreateTextureMask()
+	castBar:AddMaskTexture(castBar.flashTexture)
+	castBar:AddMaskTexture(castBar.background)
+	castBar:AddMaskTexture(castBar.extraBackground)
 	
 	--> settings and hooks
 	local settings = DF.table.copy ({}, DF.CastFrameFunctions.Settings)
@@ -9816,18 +9755,17 @@ DF.TimeLineElapsedTimeFunctions = {
 }
 
 --creates a frame to show the elapsed time in a row
-function DF:CreateElapsedTimeFrame (parent, name, options)
-	local elapsedTimeFrame = CreateFrame ("frame", name, parent, "BackdropTemplate")
+function DF:CreateElapsedTimeFrame(parent, name, options)
+	local elapsedTimeFrame = CreateFrame("frame", name, parent, "BackdropTemplate")
 	
-	DF:Mixin (elapsedTimeFrame, DF.OptionsFunctions)
-	DF:Mixin (elapsedTimeFrame, DF.LayoutFrame)
-	
-	elapsedTimeFrame:BuildOptionsTable (elapsedtime_frame_options, options)
-	
-	DF:Mixin (elapsedTimeFrame, DF.TimeLineElapsedTimeFunctions)
-	
-	elapsedTimeFrame:SetBackdrop (elapsedTimeFrame.options.backdrop)
-	elapsedTimeFrame:SetBackdropColor (unpack (elapsedTimeFrame.options.backdrop_color))
+	DF:Mixin(elapsedTimeFrame, DF.OptionsFunctions)
+	DF:Mixin(elapsedTimeFrame, DF.LayoutFrame)
+	DF:Mixin(elapsedTimeFrame, DF.TimeLineElapsedTimeFunctions)
+
+	elapsedTimeFrame:BuildOptionsTable(elapsedtime_frame_options, options)
+
+	elapsedTimeFrame:SetBackdrop(elapsedTimeFrame.options.backdrop)
+	elapsedTimeFrame:SetBackdropColor(unpack(elapsedTimeFrame.options.backdrop_color))
 	
 	elapsedTimeFrame.labels = {}
 	
@@ -9956,7 +9894,7 @@ DF.TimeLineBlockFunctions = {
 				
 				block.background:SetVertexColor (0, 0, 0, 0)
 			else
-				block.background:SetVertexColor (unpack (color))
+				block.background:SetVertexColor (0, 0, 0, 0)
 				PixelUtil.SetSize (block, max (width, 16), self:GetHeight())
 				block.auraLength:Hide()
 			end
@@ -10008,7 +9946,6 @@ DF.TimeLineBlockFunctions = {
 }
 
 DF.TimeLineFunctions = {
-	
 	GetLine = function (self, index)
 		local line = self.lines [index]
 		if (not line) then
@@ -10077,8 +10014,7 @@ DF.TimeLineFunctions = {
 	--set icons and texts
 	--skin the sliders
 	
-	RefreshTimeLine = function (self)
-	
+	RefreshTimeLine = function(self)
 		--debug
 		--self.currentScale = 1
 	
@@ -10142,7 +10078,6 @@ DF.TimeLineFunctions = {
 		self.data = data
 		self:RefreshTimeLine()
 	end,
-
 }
 
 --creates a regular scroll in horizontal position
@@ -10153,91 +10088,86 @@ function DF:CreateTimeLineFrame(parent, name, options, timelineOptions)
 	local scrollHeight = 800 --placeholder until the timeline receives data
 
 	local frameCanvas = CreateFrame("scrollframe", name, parent, "BackdropTemplate")
+
 	DF:Mixin(frameCanvas, DF.TimeLineFunctions)
-	
+	DF:Mixin(frameCanvas, DF.OptionsFunctions)
+	DF:Mixin(frameCanvas, DF.LayoutFrame)
+
 	frameCanvas.data = {}
 	frameCanvas.lines = {}
 	frameCanvas.currentScale = 0.5
-	frameCanvas:SetSize (width, height)
-	frameCanvas:SetBackdrop({
-			bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", 
-			tile = true, tileSize = 16,
-			insets = {left = 1, right = 1, top = 0, bottom = 1},})
-	frameCanvas:SetBackdropColor (.1, .1, .1, .3)
+	frameCanvas:SetSize(width, height)
 
-	local frameBody = CreateFrame ("frame", nil, frameCanvas, "BackdropTemplate")
-	frameBody:SetSize (scrollWidth, scrollHeight)
-	
-	frameCanvas:SetScrollChild (frameBody)
+	DF:ApplyStandardBackdrop(frameCanvas)
+
+	local frameBody = CreateFrame("frame", nil, frameCanvas, "BackdropTemplate")
+	frameBody:SetSize(scrollWidth, scrollHeight)
+
+	frameCanvas:SetScrollChild(frameBody)
 	frameCanvas.body = frameBody
 	
-	DF:Mixin (frameCanvas, DF.OptionsFunctions)
-	DF:Mixin (frameCanvas, DF.LayoutFrame)
-	
-	frameCanvas:BuildOptionsTable (timeline_options, options)	
+	frameCanvas:BuildOptionsTable(timeline_options, options)	
 	
 	--create elapsed time frame
-	frameCanvas.elapsedTimeFrame = DF:CreateElapsedTimeFrame (frameBody, frameCanvas:GetName() and frameCanvas:GetName() .. "ElapsedTimeFrame", timelineOptions)
+	frameCanvas.elapsedTimeFrame = DF:CreateElapsedTimeFrame(frameBody, frameCanvas:GetName() and frameCanvas:GetName() .. "ElapsedTimeFrame", timelineOptions)
 	
 	--create horizontal slider
-		local horizontalSlider = CreateFrame ("slider", frameCanvas:GetName() .. "HorizontalSlider", parent, "BackdropTemplate")
-		horizontalSlider.bg = horizontalSlider:CreateTexture (nil, "background")
-		horizontalSlider.bg:SetAllPoints (true)
-		horizontalSlider.bg:SetTexture (0, 0, 0, 0.5)
+		local horizontalSlider = CreateFrame("slider", frameCanvas:GetName() .. "HorizontalSlider", parent, "BackdropTemplate")
+		horizontalSlider.bg = horizontalSlider:CreateTexture(nil, "background")
+		horizontalSlider.bg:SetAllPoints(true)
+		horizontalSlider.bg:SetTexture(0, 0, 0, 0.5)
 		frameCanvas.horizontalSlider = horizontalSlider
 
-		horizontalSlider:SetBackdrop (frameCanvas.options.slider_backdrop)
-		horizontalSlider:SetBackdropColor (unpack (frameCanvas.options.slider_backdrop_color))
-		horizontalSlider:SetBackdropBorderColor (unpack(frameCanvas.options.slider_backdrop_border_color))
+		horizontalSlider:SetBackdrop(frameCanvas.options.slider_backdrop)
+		horizontalSlider:SetBackdropColor(unpack(frameCanvas.options.slider_backdrop_color))
+		horizontalSlider:SetBackdropBorderColor(unpack(frameCanvas.options.slider_backdrop_border_color))
 
-		horizontalSlider.thumb = horizontalSlider:CreateTexture (nil, "OVERLAY")
-		horizontalSlider.thumb:SetTexture ([[Interface\AddOns\Details\images\icons2]])
-		horizontalSlider.thumb:SetTexCoord (478/512, 496/512, 104/512, 120/512)
-		horizontalSlider.thumb:SetSize (20, 18)
-		horizontalSlider.thumb:SetVertexColor (0.6, 0.6, 0.6, 0.95)
-		
-		horizontalSlider:SetThumbTexture (horizontalSlider.thumb)
-		horizontalSlider:SetOrientation ("horizontal")
-		horizontalSlider:SetSize (width + 20, 20)
-		horizontalSlider:SetPoint ("topleft", frameCanvas, "bottomleft")
-		horizontalSlider:SetMinMaxValues (0, scrollWidth)
-		horizontalSlider:SetValue (0)
-		horizontalSlider:SetScript ("OnValueChanged", function (self)
+		horizontalSlider.thumb = horizontalSlider:CreateTexture(nil, "OVERLAY")
+		horizontalSlider.thumb:SetTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
+		horizontalSlider.thumb:SetSize(24, 24)
+		horizontalSlider.thumb:SetVertexColor(0.6, 0.6, 0.6, 0.95)
+		horizontalSlider:SetThumbTexture(horizontalSlider.thumb)
+
+		horizontalSlider:SetOrientation("horizontal")
+		horizontalSlider:SetSize(width + 20, 20)
+		horizontalSlider:SetPoint("topleft", frameCanvas, "bottomleft")
+		horizontalSlider:SetMinMaxValues(0, scrollWidth)
+		horizontalSlider:SetValue(0)
+		horizontalSlider:SetScript("OnValueChanged", function(self)
 			local _, maxValue = horizontalSlider:GetMinMaxValues()
-			local stepValue = ceil (ceil(self:GetValue() * maxValue) / max(maxValue, SMALL_FLOAT))
+			local stepValue = ceil(ceil(self:GetValue() * maxValue) / max(maxValue, SMALL_FLOAT))
 			if (stepValue ~= horizontalSlider.currentValue) then
 				horizontalSlider.currentValue = stepValue
-				frameCanvas:SetHorizontalScroll (stepValue)
+				frameCanvas:SetHorizontalScroll(stepValue)
 			end
 		end)
 	
 	--create scale slider
 		local scaleSlider = CreateFrame("slider", frameCanvas:GetName() .. "ScaleSlider", parent, "BackdropTemplate")
-		scaleSlider.bg = scaleSlider:CreateTexture (nil, "background")
-		scaleSlider.bg:SetAllPoints (true)
-		scaleSlider.bg:SetTexture (0, 0, 0, 0.5)
+		scaleSlider.bg = scaleSlider:CreateTexture(nil, "background")
+		scaleSlider.bg:SetAllPoints(true)
+		scaleSlider.bg:SetTexture(0, 0, 0, 0.5)
 		scaleSlider:Disable()
 		frameCanvas.scaleSlider = scaleSlider
 		
-		scaleSlider:SetBackdrop (frameCanvas.options.slider_backdrop)
-		scaleSlider:SetBackdropColor (unpack (frameCanvas.options.slider_backdrop_color))
-		scaleSlider:SetBackdropBorderColor (unpack(frameCanvas.options.slider_backdrop_border_color))
+		scaleSlider:SetBackdrop(frameCanvas.options.slider_backdrop)
+		scaleSlider:SetBackdropColor(unpack(frameCanvas.options.slider_backdrop_color))
+		scaleSlider:SetBackdropBorderColor(unpack(frameCanvas.options.slider_backdrop_border_color))
 		
-		scaleSlider.thumb = scaleSlider:CreateTexture (nil, "OVERLAY")
-		scaleSlider.thumb:SetTexture ([[Interface\AddOns\Details\images\icons2]])
-		scaleSlider.thumb:SetTexCoord (478/512, 496/512, 104/512, 120/512)
-		scaleSlider.thumb:SetSize (20, 18)
-		scaleSlider.thumb:SetVertexColor (0.6, 0.6, 0.6, 0.95)
-		
-		scaleSlider:SetThumbTexture (scaleSlider.thumb)
-		scaleSlider:SetOrientation ("horizontal")
-		scaleSlider:SetSize (width + 20, 20)
-		scaleSlider:SetPoint ("topleft", horizontalSlider, "bottomleft", 0, -2)
-		scaleSlider:SetMinMaxValues (frameCanvas.options.scale_min, frameCanvas.options.scale_max)
-		scaleSlider:SetValue (DF:GetRangeValue (frameCanvas.options.scale_min, frameCanvas.options.scale_max, 0.5))
+		scaleSlider.thumb = scaleSlider:CreateTexture(nil, "OVERLAY")
+		scaleSlider.thumb:SetTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
+		scaleSlider.thumb:SetSize(24, 24)
+		scaleSlider.thumb:SetVertexColor(0.6, 0.6, 0.6, 0.95)
+		scaleSlider:SetThumbTexture(scaleSlider.thumb)
 
-		scaleSlider:SetScript ("OnValueChanged", function (self)
-			local stepValue = ceil(self:GetValue() * 100)/100
+		scaleSlider:SetOrientation("horizontal")
+		scaleSlider:SetSize(width + 20, 20)
+		scaleSlider:SetPoint("topleft", horizontalSlider, "bottomleft", 0, -2)
+		scaleSlider:SetMinMaxValues(frameCanvas.options.scale_min, frameCanvas.options.scale_max)
+		scaleSlider:SetValue(DF:GetRangeValue(frameCanvas.options.scale_min, frameCanvas.options.scale_max, 0.5))
+
+		scaleSlider:SetScript("OnValueChanged", function(self)
+			local stepValue = ceil(self:GetValue() * 100) / 100
 			if (stepValue ~= frameCanvas.currentScale) then
 				local current = stepValue
 				frameCanvas.currentScale = stepValue
@@ -10246,80 +10176,80 @@ function DF:CreateTimeLineFrame(parent, name, options, timelineOptions)
 		end)
 
 	--create vertical slider
-		local verticalSlider = CreateFrame ("slider", frameCanvas:GetName() .. "VerticalSlider", parent, "BackdropTemplate")
-		verticalSlider.bg = verticalSlider:CreateTexture (nil, "background")
-		verticalSlider.bg:SetAllPoints (true)
-		verticalSlider.bg:SetTexture (0, 0, 0, 0.5)
+		local verticalSlider = CreateFrame("slider", frameCanvas:GetName() .. "VerticalSlider", parent, "BackdropTemplate")
+		verticalSlider.bg = verticalSlider:CreateTexture(nil, "background")
+		verticalSlider.bg:SetAllPoints(true)
+		verticalSlider.bg:SetTexture(0, 0, 0, 0.5)
 		frameCanvas.verticalSlider = verticalSlider
 		
-		verticalSlider:SetBackdrop (frameCanvas.options.slider_backdrop)
-		verticalSlider:SetBackdropColor (unpack (frameCanvas.options.slider_backdrop_color))
-		verticalSlider:SetBackdropBorderColor (unpack(frameCanvas.options.slider_backdrop_border_color))
+		verticalSlider:SetBackdrop(frameCanvas.options.slider_backdrop)
+		verticalSlider:SetBackdropColor(unpack(frameCanvas.options.slider_backdrop_color))
+		verticalSlider:SetBackdropBorderColor(unpack(frameCanvas.options.slider_backdrop_border_color))
 		
-		verticalSlider.thumb = verticalSlider:CreateTexture (nil, "OVERLAY")
-		verticalSlider.thumb:SetTexture ([[Interface\AddOns\Details\images\icons2]])
-		verticalSlider.thumb:SetTexCoord (482/512, 492/512, 104/512, 120/512)
-		verticalSlider.thumb:SetSize (12, 12)
-		verticalSlider.thumb:SetVertexColor (0.6, 0.6, 0.6, 0.95)
-		
-		verticalSlider:SetThumbTexture (verticalSlider.thumb)
-		verticalSlider:SetOrientation ("vertical")
-		verticalSlider:SetSize (20, height - 2)
-		verticalSlider:SetPoint ("topleft", frameCanvas, "topright", 0, 0)
-		verticalSlider:SetMinMaxValues (0, scrollHeight)
-		verticalSlider:SetValue (0)
-		verticalSlider:SetScript ("OnValueChanged", function (self)
-		      frameCanvas:SetVerticalScroll (self:GetValue())
+		verticalSlider.thumb = verticalSlider:CreateTexture(nil, "OVERLAY")
+		verticalSlider.thumb:SetTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
+		verticalSlider.thumb:SetSize(24, 24)
+		verticalSlider.thumb:SetVertexColor(0.6, 0.6, 0.6, 0.95)
+		verticalSlider:SetThumbTexture(verticalSlider.thumb)
+
+		verticalSlider:SetOrientation("vertical")
+		verticalSlider:SetSize(20, height - 2)
+		verticalSlider:SetPoint("topleft", frameCanvas, "topright", 0, 0)
+		verticalSlider:SetMinMaxValues(0, scrollHeight)
+		verticalSlider:SetValue(0)
+		verticalSlider:SetScript("OnValueChanged", function(self)
+		    frameCanvas:SetVerticalScroll(self:GetValue())
 		end)
 
 	--mouse scroll
-		frameCanvas:EnableMouseWheel (true)
-		frameCanvas:SetScript ("OnMouseWheel", function (self, delta)
+		frameCanvas:EnableMouseWheel(true)
+		frameCanvas:SetScript("OnMouseWheel", function(self, delta)
 			local minValue, maxValue = horizontalSlider:GetMinMaxValues()
 			local currentHorizontal = horizontalSlider:GetValue()
 			
 			if (IsShiftKeyDown() and delta < 0) then
 				local amountToScroll = frameBody:GetHeight() / 20
-				verticalSlider:SetValue (verticalSlider:GetValue() + amountToScroll)
+				verticalSlider:SetValue(verticalSlider:GetValue() + amountToScroll)
 				
 			elseif (IsShiftKeyDown() and delta > 0) then
 				local amountToScroll = frameBody:GetHeight() / 20
-				verticalSlider:SetValue (verticalSlider:GetValue() - amountToScroll)
+				verticalSlider:SetValue(verticalSlider:GetValue() - amountToScroll)
 				
 			elseif (IsControlKeyDown() and delta > 0) then
-				scaleSlider:SetValue (min (scaleSlider:GetValue() + 0.1, 1))
+				scaleSlider:SetValue(min(scaleSlider:GetValue() + 0.1, 1))
 			
 			elseif (IsControlKeyDown() and delta < 0) then
-				scaleSlider:SetValue (max (scaleSlider:GetValue() - 0.1, 0.15))
+				scaleSlider:SetValue(max(scaleSlider:GetValue() - 0.1, 0.15))
 				
 			elseif (delta < 0 and currentHorizontal < maxValue) then
 				local amountToScroll = frameBody:GetWidth() / 20
-				horizontalSlider:SetValue (currentHorizontal + amountToScroll)
+				horizontalSlider:SetValue(currentHorizontal + amountToScroll)
 				
 			elseif (delta > 0 and maxValue > 1) then
 				local amountToScroll = frameBody:GetWidth() / 20
-				horizontalSlider:SetValue (currentHorizontal - amountToScroll)
+				horizontalSlider:SetValue(currentHorizontal - amountToScroll)
 				
 			end
 		end)
-		
+
 	--mouse drag
-	frameBody:SetScript ("OnMouseDown", function (self, button)
+	frameBody:SetScript("OnMouseDown", function(self, button)
 		local x = GetCursorPosition()
 		self.MouseX = x
-		
-		frameBody:SetScript ("OnUpdate", function (self, deltaTime)
+
+		frameBody:SetScript("OnUpdate", function(self, deltaTime)
 			local x = GetCursorPosition()
 			local deltaX = self.MouseX - x
 			local current = horizontalSlider:GetValue()
-			horizontalSlider:SetValue (current + (deltaX * 1.2) * ((IsShiftKeyDown() and 2) or (IsAltKeyDown() and 0.5) or 1))
+			horizontalSlider:SetValue(current +(deltaX * 1.2) *((IsShiftKeyDown() and 2) or(IsAltKeyDown() and 0.5) or 1))
 			self.MouseX = x
 		end)
 	end)
-	frameBody:SetScript ("OnMouseUp", function (self, button)
-		frameBody:SetScript ("OnUpdate", nil)
+
+	frameBody:SetScript("OnMouseUp", function(self, button)
+		frameBody:SetScript("OnUpdate", nil)
 	end)
-	
+
 	return frameCanvas
 end
 
