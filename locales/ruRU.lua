@@ -1,5 +1,6 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("AutoSellerLocales", "ruRU") 
-if not L then return end 
+local addonId = ...
+local languageTable = DetailsFramework.Language.RegisterLanguage(addonId, "ruRU")
+local L = languageTable
 
 L["STRING_AHPRICE"] = "Цена аукциона"
 L["STRING_AHPRICE_DESC"] = [=[Предметы с аукциона стоимостью |cFFFFFF00ниже этого|r будут проданы.

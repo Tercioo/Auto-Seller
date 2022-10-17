@@ -1,2 +1,6 @@
 required-dependencies:
     - libdframework
+
+#@version-retail@
+## Version: @project-version@-Retail
+#@end-version-retail@

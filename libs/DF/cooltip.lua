@@ -15,7 +15,7 @@ local max = math.max
 
 --api locals
 local PixelUtil = PixelUtil or DFPixelUtil
-local version = 3
+local version = 5
 
 local CONST_MENU_TYPE_MAINMENU = "main"
 local CONST_MENU_TYPE_SUBMENU = "sub"
@@ -145,10 +145,30 @@ function DF:CreateCoolTip()
 	}
 
 	gameCooltip.AliasList = {
-		["VerticalOffset"] = "ButtonsYMod",
-		["VerticalPadding"] = "YSpacingMod",
+		--set the height of each line, options 'IgnoreButtonAutoHeight' and 'AlignAsBlizzTooltip' must be false
 		["LineHeightSizeOffset"] = "ButtonHeightMod",
+		["LineHeightSizeOffsetSub"] = "ButtonHeightModSub",
+
 		["FrameHeightSizeOffset"] = "HeighMod",
+		["FrameHeightSizeOffsetSub"] = "HeighModSub",
+
+		--space between the tooltip's left side and the start of the line
+		["LeftPadding"] = "LeftBorderSize",
+
+		--space between the tooltip's right side and the end of the line
+		["RightPadding"] = "RightBorderSize",
+
+		--space between each line, positive values make the lines be closer
+		["LinePadding"] = "YSpacingMod",
+		["VerticalPadding"] = "YSpacingMod",
+		["LinePaddingSub"] = "YSpacingModSub",
+		["VerticalPaddingSub"] = "YSpacingModSub",
+
+		--move each line in the Y axis (vertical offsett)
+		["LineYOffset"] = "ButtonsYMod",
+		["VerticalOffset"] = "ButtonsYMod",
+		["LineYOffsetSub"] = "ButtonsYModSub",
+		["VerticalOffsetSub"] = "ButtonsYModSub",
 	}
 
 	gameCooltip.OptionsTable = {}
@@ -276,7 +296,7 @@ function DF:CreateCoolTip()
 		end
 	end
 
-	--> main frame
+	--main frame
 		local frame1 = GameCooltipFrame1
 		if (not GameCooltipFrame1) then
 			frame1 = CreateFrame("Frame", "GameCooltipFrame1", UIParent, "BackdropTemplate")
@@ -290,7 +310,7 @@ function DF:CreateCoolTip()
 
 		createTooltipFrames(frame1)
 
-	--> secondary frame
+	--secondary frame
 		local frame2 = GameCooltipFrame2
 		if (not GameCooltipFrame2) then
 			frame2 = CreateFrame("Frame", "GameCooltipFrame2", UIParent, "BackdropTemplate")
@@ -499,8 +519,8 @@ function DF:CreateCoolTip()
 		statusbar.texture = statusbar:CreateTexture("$parent_Texture", "BACKGROUND")
 		statusbar.texture:SetTexture("Interface\\PaperDollInfoFrame\\UI-Character-Skills-Bar")
 		statusbar.texture:SetSize(300, 14)
-		statusbar:SetStatusBarTexture (statusbar.texture)
-		statusbar:SetMinMaxValues (0, 100)
+		statusbar:SetStatusBarTexture(statusbar.texture)
+		statusbar:SetMinMaxValues(0, 100)
 
 		statusbar.spark = statusbar:CreateTexture("$parent_Spark", "BACKGROUND")
 		statusbar.spark:Hide()
@@ -562,8 +582,8 @@ function DF:CreateCoolTip()
 		statusbar2.texture = statusbar2:CreateTexture("$parent_Texture", "BACKGROUND")
 		statusbar2.texture:SetTexture("Interface\\PaperDollInfoFrame\\UI-Character-Skills-Bar")
 		statusbar2.texture:SetSize(300, 14)
-		statusbar2:SetStatusBarTexture (statusbar2.texture)
-		statusbar2:SetMinMaxValues (0, 100)
+		statusbar2:SetStatusBarTexture(statusbar2.texture)
+		statusbar2:SetMinMaxValues(0, 100)
 
 		--on load
 		self:RegisterForClicks("LeftButtonDown")
@@ -849,7 +869,7 @@ function DF:CreateCoolTip()
 			local func = gameCooltip.FunctionsTableMain[self.index]
 			local okay, errortext = pcall(func, gameCooltip.Host, gameCooltip.FixedValue, parameterTable[1], parameterTable[2], parameterTable[3], button)
 			if (not okay) then
-				print ("Cooltip OnClick Error:", errortext)
+				print("Cooltip OnClick Error:", errortext)
 			end
 		end
 	end
@@ -1114,7 +1134,7 @@ function DF:CreateCoolTip()
 
 	function gameCooltip:RefreshSpark(menuButton)
 		menuButton.spark:ClearAllPoints()
-		menuButton.spark:SetPoint("LEFT", menuButton.statusbar, "LEFT", (menuButton.statusbar:GetValue() * (menuButton.statusbar:GetWidth() / 100)) - 5, 0)
+		menuButton.spark:SetPoint("left", menuButton.statusbar, "left", (menuButton.statusbar:GetValue() * (menuButton.statusbar:GetWidth() / 100)) - 5, 0)
 		menuButton.spark2:ClearAllPoints()
 		menuButton.spark2:SetPoint("left", menuButton.statusbar, "left", menuButton.statusbar:GetValue() * (menuButton.statusbar:GetWidth()/100) - 16, 0)
 	end
@@ -1122,7 +1142,7 @@ function DF:CreateCoolTip()
 	function gameCooltip:StatusBar(menuButton, statusBarSettings)
 		if (statusBarSettings) then
 			menuButton.statusbar:SetValue(statusBarSettings[1])
-			menuButton.statusbar:SetStatusBarColor (statusBarSettings[2], statusBarSettings[3], statusBarSettings[4], statusBarSettings[5])
+			menuButton.statusbar:SetStatusBarColor(statusBarSettings[2], statusBarSettings[3], statusBarSettings[4], statusBarSettings[5])
 			menuButton.statusbar:SetHeight(20 + (gameCooltip.OptionsTable.StatusBarHeightMod or 0))
 
 			menuButton.spark2:Hide()
@@ -1140,9 +1160,9 @@ function DF:CreateCoolTip()
 				end
 				if (statusBarSettings[7].color) then
 					local colorRed, colorGreen, colorBlue, colorAlpha = DF:ParseColors(statusBarSettings[7].color)
-					menuButton.statusbar2:SetStatusBarColor (colorRed, colorGreen, colorBlue, colorAlpha)
+					menuButton.statusbar2:SetStatusBarColor(colorRed, colorGreen, colorBlue, colorAlpha)
 				else
-					menuButton.statusbar2:SetStatusBarColor (1, 1, 1, 1)
+					menuButton.statusbar2:SetStatusBarColor(1, 1, 1, 1)
 				end
 			else
 				menuButton.statusbar2:SetValue(0)
@@ -1475,8 +1495,8 @@ function DF:CreateCoolTip()
 		frame1.w = gameCooltip.OptionsTable.FixedWidth or 0
 		frame1.hHeight = 0
 		frame2.hHeight = 0
-
 		gameCooltip.active = true
+
 		for i = 1, gameCooltip.Indexes do
 			local button = frame1.Lines[i]
 			if (not button) then
@@ -1485,10 +1505,11 @@ function DF:CreateCoolTip()
 
 			button.index = i
 
-			--basic stuff
 			button:Show()
 			button.background:Hide()
 			button:SetHeight(gameCooltip.OptionsTable.ButtonHeightMod or gameCooltip.default_height)
+
+			--clear registered click buttons
 			button:RegisterForClicks()
 
 			--setup texts and icons
@@ -1510,7 +1531,7 @@ function DF:CreateCoolTip()
 
 		--normalize height of all rows
 		local heightValue = -6 + spacing + (gameCooltip.OptionsTable.ButtonsYMod or 0)
-		for i = 1, gameCooltip.Indexes do 
+		for i = 1, gameCooltip.Indexes do
 			local menuButton = frame1.Lines[i]
 
 			menuButton:ClearAllPoints()
@@ -1528,19 +1549,17 @@ function DF:CreateCoolTip()
 				local height = max(2, menuButton.leftText:GetStringHeight(), menuButton.rightText:GetStringHeight(), menuButton.leftIcon:GetHeight(), menuButton.rightIcon:GetHeight(), gameCooltip.OptionsTable.AlignAsBlizzTooltipForceHeight or 2)
 				menuButton:SetHeight(height)
 				menuButton:SetPoint("top", frame1, "top", 0, heightValue)
-				heightValue = heightValue + ( height * -1)
+				heightValue = heightValue + (height * -1)
 
 			elseif (gameCooltip.OptionsTable.IgnoreButtonAutoHeight) then
-
 				local height = max(menuButton.leftText:GetStringHeight(), menuButton.rightText:GetStringHeight(), menuButton.leftIcon:GetHeight(), menuButton.rightIcon:GetHeight())
 				menuButton:SetHeight(height)
 				menuButton:SetPoint("top", frame1, "top", 0, heightValue)
-
-				heightValue = heightValue + ( height * -1) + spacing + (gameCooltip.OptionsTable.ButtonsYMod or 0)
+				heightValue = heightValue + (height * -1) + spacing + (gameCooltip.OptionsTable.ButtonsYMod or 0)
 
 			else
 				menuButton:SetHeight(frame1.hHeight + (gameCooltip.OptionsTable.ButtonHeightMod or 0))
-				menuButton:SetPoint("top", frame1, "top", 0, ( ( (i-1) * frame1.hHeight) * -1) - 6 + (gameCooltip.OptionsTable.ButtonsYMod or 0) + spacing)
+				menuButton:SetPoint("top", frame1, "top", 0, (((i-1) * frame1.hHeight) * -1) - 6 + (gameCooltip.OptionsTable.ButtonsYMod or 0) + spacing)
 			end
 
 			if (gameCooltip.OptionsTable.YSpacingMod and not gameCooltip.OptionsTable.IgnoreButtonAutoHeight) then
@@ -1553,8 +1572,8 @@ function DF:CreateCoolTip()
 		if (not gameCooltip.OptionsTable.FixedWidth) then
 			if (gameCooltip.Type == 2) then --with bars
 				if (gameCooltip.OptionsTable.MinWidth) then
-					local w = frame1.w + 34
-					PixelUtil.SetWidth(frame1, math.max(w, gameCooltip.OptionsTable.MinWidth))
+					local width = frame1.w + 34
+					PixelUtil.SetWidth(frame1, math.max(width, gameCooltip.OptionsTable.MinWidth))
 				else
 					PixelUtil.SetWidth(frame1, frame1.w + 34)
 				end
@@ -1585,7 +1604,7 @@ function DF:CreateCoolTip()
 				PixelUtil.SetHeight(frame1, (heightValue + spacing) * -1)
 
 			else
-				PixelUtil.SetHeight(frame1, max( (frame1.hHeight * gameCooltip.Indexes) + 8 + ((gameCooltip.OptionsTable.ButtonsYMod or 0)*-1), 22 ))
+				PixelUtil.SetHeight(frame1, max((frame1.hHeight * gameCooltip.Indexes) + 8 + ((gameCooltip.OptionsTable.ButtonsYMod or 0) * -1), 22))
 			end
 		end
 
@@ -1844,13 +1863,13 @@ function DF:CreateCoolTip()
 
 			if (centerY) then
 				if (centerY + helpScreenHeight > screenHeight) then
-					--> out of top side
+					--out of top side
 					local moveDownOffset = (centerY + helpScreenHeight) - screenHeight
 					gameCooltip.internal_y_mod = -moveDownOffset
 					return gameCooltip:SetMyPoint(host, 0, -moveDownOffset)
 
 				elseif (centerY - helpScreenHeight < 0) then
-					--> out of bottom side
+					--out of bottom side
 					local moveUpOffset = centerY - helpScreenHeight
 					gameCooltip.internal_y_mod = moveUpOffset * -1
 					return gameCooltip:SetMyPoint(host, 0, moveUpOffset * -1)
@@ -1940,6 +1959,11 @@ function DF:CreateCoolTip()
 	--return the current frame using cooltip
 	function gameCooltip:GetOwner()
 		return gameCooltip.Host
+	end
+
+	function gameCooltip:IsOwner(frame)
+		local currentOwner = gameCooltip:GetOwner()
+		return currentOwner == frame
 	end
 
 	--set the anchor of cooltip, parameters: frame [, cooltip anchor point, frame anchor point[, x mod, y mod]]
@@ -3136,39 +3160,27 @@ function DF:CreateCoolTip()
 			self:Reset(true)
 		end
 
+		gameCooltip:SetOption("StatusBarTexture", [[Interface\WorldStateFrame\WORLDSTATEFINALSCORE-HIGHLIGHT]])
+		self:SetOption("TextFont", DF:GetBestFontForLanguage())
+		self:SetOption("TextColor", "orange")
+		self:SetOption("TextSize", 11)
+		self:SetOption("ButtonsYMod", -4)
+		self:SetOption("YSpacingMod", -4)
+		self:SetOption("IgnoreButtonAutoHeight", true)
+
 		if (presetId == 1) then
-			self:SetOption("TextFont", DF:GetBestFontForLanguage())
-			self:SetOption("TextColor", "orange")
-			self:SetOption("TextSize", 12)
-			self:SetOption("ButtonsYMod", -4)
-			self:SetOption("YSpacingMod", -4)
-			self:SetOption("IgnoreButtonAutoHeight", true)
 			self:SetColor(1, 0.5, 0.5, 0.5, 0.5)
 
 		elseif (presetId == 2) then --used by most of the widgets
-			self:SetOption("TextFont", DF:GetBestFontForLanguage())
-			self:SetOption("TextColor", "orange")
-			self:SetOption("TextSize", 12)
 			self:SetOption("FixedWidth", 220)
-			self:SetOption("ButtonsYMod", -4)
-			self:SetOption("YSpacingMod", -4)
-			self:SetOption("IgnoreButtonAutoHeight", true)
 			self:SetColor(1, defaultBackdropColor)
 			self:SetColor(2, defaultBackdropColor)
-
 			self:SetBackdrop(1, defaultBackdrop, defaultBackdropColor, defaultBackdropBorderColor)
 			self:SetBackdrop(2, defaultBackdrop, defaultBackdropColor, defaultBackdropBorderColor)
 
 		elseif (presetId == 3) then --default used when Cooltip:Reset() is called
-			self:SetOption("TextFont", DF:GetBestFontForLanguage())
-			self:SetOption("TextColor", "orange")
-			self:SetOption("TextSize", 12)
-			self:SetOption("ButtonsYMod", -4)
-			self:SetOption("YSpacingMod", -4)
-			self:SetOption("IgnoreButtonAutoHeight", true)
 			self:SetColor(1, defaultBackdropColor)
 			self:SetColor(2, defaultBackdropColor)
-
 			self:SetBackdrop(1, defaultBackdrop, defaultBackdropColor, defaultBackdropBorderColor)
 			self:SetBackdrop(2, defaultBackdrop, defaultBackdropColor, defaultBackdropBorderColor)
 		end
@@ -3195,6 +3207,11 @@ function DF:CreateCoolTip()
 			gameCooltip:Hide()
 		end)
 	end
+
+	function gameCooltip:DetectLanguageId(text)
+		
+	end
+
 	return gameCooltip
 end
 

@@ -6,6 +6,10 @@ end
 
 local _
 
+local getFrame = function(frame)
+	return rawget(frame, "widget") or frame
+end
+
 detailsFramework.WidgetFunctions = {
 	GetCapsule = function(self)
 		return self.MyObject
@@ -23,6 +27,53 @@ detailsFramework.DefaultMetaFunctionsGet = {
 
 	shown = function(object)
 		return object:IsShown()
+	end,
+}
+
+detailsFramework.TooltipHandlerMixin = {
+	SetTooltip = function(self, tooltip)
+		if (tooltip) then
+			if (detailsFramework.Language.IsLocTable(tooltip)) then
+				--register the locTable as a tableKey
+				local locTable = tooltip
+				detailsFramework.Language.RegisterTableKeyWithLocTable(self, "have_tooltip", locTable)
+			else
+				self.have_tooltip = tooltip
+			end
+		else
+			self.have_tooltip = nil
+		end
+	end,
+
+	GetTooltip = function(self)
+		return self.have_tooltip
+	end,
+
+	ShowTooltip = function(self)
+		local tooltipText = self:GetTooltip()
+
+		if (type(tooltipText) == "function") then
+			local tooltipFunction = tooltipText
+			local gotTooltip, tooltipString = xpcall(tooltipFunction, geterrorhandler())
+			if (gotTooltip) then
+				tooltipText = tooltipString
+			end
+		end
+
+		if (tooltipText) then
+			GameCooltip:Preset(2)
+			GameCooltip:AddLine(tooltipText)
+			GameCooltip:ShowCooltip(getFrame(self), "tooltip")
+		end
+	end,
+
+	HideTooltip = function(self)
+		local tooltipText = self:GetTooltip()
+		if (tooltipText) then
+			if (GameCooltip:IsOwner(getFrame(self))) then
+				GameCooltip:Hide()
+			end
+		end
 	end,
 }
 
@@ -72,6 +123,53 @@ detailsFramework.LayeredRegionMetaFunctionsGet = {
 	end,
 }
 
+detailsFramework.FrameMixin = {
+	SetFrameStrata = function(self, strata)
+		self = getFrame(self)
+		if (type(strata) == "table" and strata.GetObjectType) then
+			local UIObject = strata
+			self:SetFrameStrata(UIObject:GetFrameStrata())
+		else
+			self:SetFrameStrata(strata)
+		end
+	end,
+
+	SetFrameLevel = function(self, level, UIObject)
+		self = getFrame(self)
+		if (not UIObject) then
+			self:SetFrameLevel(level)
+		else
+			local framelevel = UIObject:GetFrameLevel(UIObject) + level
+			self:SetFrameLevel(framelevel)
+		end
+	end,
+
+	SetSize = function(self, width, height)
+		self = getFrame(self)
+		if (width) then
+			self:SetWidth(width)
+		end
+		if (height) then
+			self:SetHeight(height)
+		end
+	end,
+
+	SetBackdrop = function(self, ...)
+		self = getFrame(self)
+		self:SetBackdrop(...)
+	end,
+
+	SetBackdropColor = function(self, ...)
+		self = getFrame(self)
+		self:SetBackdropColor(...)
+	end,
+
+	SetBackdropBorderColor = function(self, ...)
+		self = getFrame(self)
+		getFrame(self):SetBackdropBorderColor(...)
+	end,
+}
+
 local doublePoint = {
 	["lefts"] = true,
 	["rights"] = true,
@@ -96,7 +194,7 @@ detailsFramework.SetPointMixin = {
 			local anchorTo
 			if (anchorObject and type(anchorObject) == "table") then
 				xOffset, yOffset = anchorName2 or 0, xOffset or 0
-				anchorTo = anchorObject.widget or anchorObject
+				anchorTo = getFrame(anchorObject)
 			else
 				xOffset, yOffset = anchorObject or 0, anchorName2 or 0
 				anchorTo = object:GetParent()
@@ -159,13 +257,19 @@ detailsFramework.SetPointMixin = {
 			error("SetPoint: Invalid parameter.")
 			return
 		end
-		return object.widget:SetPoint(anchorName1, anchorObject, anchorName2, xOffset, yOffset)
+
+		if (not object.widget) then
+			local SetPoint = getmetatable(object).__index.SetPoint
+			return SetPoint(object, anchorName1, anchorObject, anchorName2, xOffset, yOffset)
+		else
+			return object.widget:SetPoint(anchorName1, anchorObject, anchorName2, xOffset, yOffset)
+		end
 	end,
 }
 
 --mixin for options functions
 detailsFramework.OptionsFunctions = {
-	SetOption = function (self, optionName, optionValue)
+	SetOption = function(self, optionName, optionValue)
 		if (self.options) then
 			self.options [optionName] = optionValue
 		else
@@ -178,14 +282,14 @@ detailsFramework.OptionsFunctions = {
 		end
 	end,
 
-	GetOption = function (self, optionName)
+	GetOption = function(self, optionName)
 		return self.options and self.options [optionName]
 	end,
 
-	GetAllOptions = function (self)
+	GetAllOptions = function(self)
 		if (self.options) then
 			local optionsTable = {}
-			for key, _ in pairs (self.options) do
+			for key, _ in pairs(self.options) do
 				optionsTable [#optionsTable + 1] = key
 			end
 			return optionsTable
@@ -194,10 +298,10 @@ detailsFramework.OptionsFunctions = {
 		end
 	end,
 
-	BuildOptionsTable = function (self, defaultOptions, userOptions)
+	BuildOptionsTable = function(self, defaultOptions, userOptions)
 		self.options = self.options or {}
-		detailsFramework.table.deploy (self.options, userOptions or {})
-		detailsFramework.table.deploy (self.options, defaultOptions or {})
+		detailsFramework.table.deploy(self.options, userOptions or {})
+		detailsFramework.table.deploy(self.options, defaultOptions or {})
 	end
 }
 
@@ -239,9 +343,79 @@ detailsFramework.PayloadMixin = {
 	end,
 }
 
+detailsFramework.ScriptHookMixin = {
+	RunHooksForWidget = function(self, event, ...)
+		local hooks = self.HookList[event]
+
+		if (not hooks) then
+			print(self.widget:GetName(), "no hooks for", event)
+			return
+		end
+
+		for i, func in ipairs(hooks) do
+			local success, canInterrupt = xpcall(func, geterrorhandler(), ...)
+
+			if (not success) then
+				--error("Details! Framework: " .. event .. " hook for " .. self:GetName() .. ": " .. canInterrupt)
+				return false
+
+			elseif (canInterrupt) then
+				return true
+			end
+		end
+	end,
+
+	SetHook = function(self, hookType, func)
+		if (self.HookList[hookType]) then
+			if (type(func) == "function") then
+				local isRemoval = false
+				for i = #self.HookList[hookType], 1, -1 do
+					if (self.HookList[hookType][i] == func) then
+						tremove(self.HookList[hookType], i)
+						isRemoval = true
+						break
+					end
+				end
+
+				if (not isRemoval) then
+					tinsert(self.HookList[hookType], func)
+				end
+			else
+				if (detailsFramework.debug) then
+					print(debugstack())
+					error("Details! Framework: invalid function for widget " .. self.WidgetType .. ".")
+				end
+			end
+		else
+			if (detailsFramework.debug) then
+				error("Details! Framework: unknown hook type for widget " .. self.WidgetType .. ": '" .. hookType .. "'.")
+			end
+		end
+	end,
+
+	HasHook = function(self, hookType, func)
+		if (self.HookList[hookType]) then
+			if (type(func) == "function") then
+				for i = #self.HookList[hookType], 1, -1 do
+					if (self.HookList[hookType][i] == func) then
+						return true
+					end
+				end
+			end
+		end
+	end,
+
+	ClearHooks = function(self)
+		for hookType, hookTable in pairs(self.HookList) do
+			table.wipe(hookTable)
+		end
+	end,
+}
+
 detailsFramework.ScrollBoxFunctions = {
 	Refresh = function(self)
 		--hide all frames and tag as not in use
+		self._LinesInUse = 0
 		for index, frame in ipairs(self.Frames) do
 			frame:Hide()
 			frame._InUse = nil
@@ -265,13 +439,25 @@ detailsFramework.ScrollBoxFunctions = {
 
 		self:Show()
 
-		if (self.HideScrollBar) then
-			local frameName = self:GetName()
-			if (frameName) then
+		local frameName = self:GetName()
+		if (frameName) then
+			if (self.HideScrollBar) then
 				local scrollBar = _G[frameName .. "ScrollBar"]
 				if (scrollBar) then
 					scrollBar:Hide()
 				end
+			else
+				--[=[ --maybe in the future I visit this again
+				local scrollBar = _G[frameName .. "ScrollBar"]
+				local height = self:GetHeight()
+				local totalLinesRequired = #self.data
+				local linesShown = self._LinesInUse
+
+				local percent = linesShown / totalLinesRequired
+				local thumbHeight = height * percent
+				scrollBar.ThumbTexture:SetSize(12, thumbHeight)
+				print("thumbHeight:", thumbHeight)
+				--]=]
 			end
 		end
 		return self.Frames
@@ -310,6 +496,8 @@ detailsFramework.ScrollBoxFunctions = {
 		if (line) then
 			line._InUse = true
 		end
+
+		self._LinesInUse = self._LinesInUse + 1
 		return line
 	end,
 
@@ -481,10 +669,10 @@ detailsFramework.ScrollBoxFunctions = {
 }
 
 local SortMember = ""
-local SortByMember = function (t1, t2)
+local SortByMember = function(t1, t2)
 	return t1[SortMember] > t2[SortMember]
 end
-local SortByMemberReverse = function (t1, t2)
+local SortByMemberReverse = function(t1, t2)
 	return t1[SortMember] < t2[SortMember]
 end
 

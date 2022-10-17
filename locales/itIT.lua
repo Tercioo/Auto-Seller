@@ -1,5 +1,6 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("AutoSellerLocales", "itIT") 
-if not L then return end 
+local addonId = ...
+local languageTable = DetailsFramework.Language.RegisterLanguage(addonId, "itIT")
+local L = languageTable
 
 --[[Translation missing --]]
 --[[ L["STRING_AHPRICE"] = ""--]] 

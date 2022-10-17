@@ -10,9 +10,6 @@ local loadedAPILabelFunctions = false
 do
 	local metaPrototype = {
 		WidgetType = "label",
-		SetHook = detailsFramework.SetHook,
-		RunHooksForWidget = detailsFramework.RunHooksForWidget,
-
 		dversion = detailsFramework.dversion,
 	}
 
@@ -37,16 +34,17 @@ end
 local LabelMetaFunctions = _G[detailsFramework.GlobalWidgetControlNames ["label"]]
 
 detailsFramework:Mixin(LabelMetaFunctions, detailsFramework.SetPointMixin)
+detailsFramework:Mixin(LabelMetaFunctions, detailsFramework.ScriptHookMixin)
 
 ------------------------------------------------------------------------------------------------------------
---> metatables
+--metatables
 
 	LabelMetaFunctions.__call = function(object, value)
 		return object.label:SetText(value)
 	end
 
 ------------------------------------------------------------------------------------------------------------
---> members
+--members
 
 	--get text
 	local gmember_text = function(object)
@@ -203,7 +201,7 @@ detailsFramework:Mixin(LabelMetaFunctions, detailsFramework.SetPointMixin)
 	LabelMetaFunctions.SetMembers["textsize"] = smember_textsize--alias
 	LabelMetaFunctions.SetMembers["shadow"] = smember_outline
 	LabelMetaFunctions.SetMembers["outline"] = smember_outline--alias
-	LabelMetaFunctions.SetMembers["rotation"] = smember_rotation--alias
+	LabelMetaFunctions.SetMembers["rotation"] = smember_rotation
 
 	LabelMetaFunctions.__newindex = function(object, key, value)
 		local func = LabelMetaFunctions.SetMembers[key]
@@ -215,21 +213,22 @@ detailsFramework:Mixin(LabelMetaFunctions, detailsFramework.SetPointMixin)
 	end
 
 ------------------------------------------------------------------------------------------------------------
---> methods
+--methods
 
---text text
+	--text text
 	function LabelMetaFunctions:SetTextTruncated(text, maxWidth)
 		self.widget:SetText(text)
 		detailsFramework:TruncateText(self.widget, maxWidth)
 	end
 
---textcolor
+	--textcolor
 	function LabelMetaFunctions:SetTextColor(r, g, b, a)
 		r, g, b, a = detailsFramework:ParseColors(r, g, b, a)
 		return self.label:SetTextColor(r, g, b, a)
 	end
 
 ------------------------------------------------------------------------------------------------------------
+--template
 
 	function LabelMetaFunctions:SetTemplate(template)
 		if (template.size) then
@@ -247,84 +246,96 @@ detailsFramework:Mixin(LabelMetaFunctions, detailsFramework.SetPointMixin)
 	end
 
 ------------------------------------------------------------------------------------------------------------
---> object constructor
-function detailsFramework:CreateLabel(parent, text, size, color, font, member, name, layer)
-	return detailsFramework:NewLabel(parent, nil, name, member, text, font, size, color, layer)
-end
+--object constructor
 
-function detailsFramework:NewLabel(parent, container, name, member, text, font, size, color, layer)
-	if (not parent) then
-		return error("Details! Framework: parent not found.", 2)
-	end
-	if (not container) then
-		container = parent
+	function detailsFramework:CreateLabel(parent, text, size, color, font, member, name, layer)
+		return detailsFramework:NewLabel(parent, nil, name, member, text, font, size, color, layer)
 	end
 
-	if (not name) then
-		name = "DetailsFrameworkLabelNumber" .. detailsFramework.LabelNameCounter
-		detailsFramework.LabelNameCounter = detailsFramework.LabelNameCounter + 1
-	end
+	function detailsFramework:NewLabel(parent, container, name, member, text, font, size, color, layer)
+		if (not parent) then
+			return error("Details! Framework: parent not found.", 2)
+		end
+		if (not container) then
+			container = parent
+		end
 
-	if (name:find("$parent")) then
-		local parentName = detailsFramework.GetParentName(parent)
-		name = name:gsub("$parent", parentName)
-	end
+		if (not name) then
+			name = "DetailsFrameworkLabelNumber" .. detailsFramework.LabelNameCounter
+			detailsFramework.LabelNameCounter = detailsFramework.LabelNameCounter + 1
+		end
 
-	local LabelObject = {type = "label", dframework = true}
+		if (name:find("$parent")) then
+			local parentName = detailsFramework.GetParentName(parent)
+			name = name:gsub("$parent", parentName)
+		end
 
-	if (member) then
-		parent[member] = LabelObject
-	end
+		local labelObject = {type = "label", dframework = true}
 
-	if (parent.dframework) then
-		parent = parent.widget
-	end
+		if (member) then
+			parent[member] = labelObject
+		end
 
-	if (container.dframework) then
-		container = container.widget
-	end
+		if (parent.dframework) then
+			parent = parent.widget
+		end
 
-	font = font == "" and "GameFontHighlightSmall" or font or "GameFontHighlightSmall"
+		if (container.dframework) then
+			container = container.widget
+		end
 
-	LabelObject.label = parent:CreateFontString(name, layer or "OVERLAY", font)
-	LabelObject.widget = LabelObject.label
-	LabelObject.label.MyObject = LabelObject
+		if (not font or font == "") then
+			font = "GameFontNormal"
+		end
 
-	if (not loadedAPILabelFunctions) then
-		loadedAPILabelFunctions = true
-		local idx = getmetatable(LabelObject.label).__index
-		for funcName, funcAddress in pairs(idx) do
-			if (not LabelMetaFunctions[funcName]) then
-				LabelMetaFunctions[funcName] = function (object, ...)
-					local x = loadstring( "return _G['"..object.label:GetName().."']:"..funcName.."(...)")
-					return x(...)
+		labelObject.label = parent:CreateFontString(name, layer or "OVERLAY", font)
+		labelObject.widget = labelObject.label
+		labelObject.label.MyObject = labelObject
+
+		if (not loadedAPILabelFunctions) then
+			loadedAPILabelFunctions = true
+			local idx = getmetatable(labelObject.label).__index
+			for funcName, funcAddress in pairs(idx) do
+				if (not LabelMetaFunctions[funcName]) then
+					LabelMetaFunctions[funcName] = function(object, ...)
+						local x = loadstring( "return _G['"..object.label:GetName().."']:"..funcName.."(...)")
+						return x(...)
+					end
 				end
 			end
 		end
+
+		--if the text is a table, it means a language table has been passed
+		if (type(text) == "table") then
+			local locTable = text
+			if (detailsFramework.Language.IsLocTable(locTable)) then
+				detailsFramework.Language.SetTextWithLocTable(labelObject.widget, locTable)
+			else
+				labelObject.label:SetText(text)
+			end
+		else
+			labelObject.label:SetText(text)
+		end
+
+		labelObject.label:SetJustifyH("left")
+
+		if (color) then
+			local r, g, b, a = detailsFramework:ParseColors(color)
+			labelObject.label:SetTextColor(r, g, b, a)
+		end
+
+		if (size and type(size) == "number") then
+			detailsFramework:SetFontSize(labelObject.label, size)
+		end
+
+		labelObject.HookList = {}
+
+		setmetatable(labelObject, LabelMetaFunctions)
+
+		--if template has been passed as the third parameter
+		if (size and type(size) == "table") then
+			labelObject:SetTemplate(size)
+		end
+
+		return labelObject
 	end
-
-	LabelObject.label:SetText(text)
-
-	if (color) then
-		local r, g, b, a = detailsFramework:ParseColors(color)
-		LabelObject.label:SetTextColor(r, g, b, a)
-	end
-
-	if (size and type(size) == "number") then
-		detailsFramework:SetFontSize(LabelObject.label, size)
-	end
-
-	LabelObject.HookList = {
-	}
-
-	LabelObject.label:SetJustifyH("LEFT")
-
-	setmetatable(LabelObject, LabelMetaFunctions)
-
-	--if template has been passed as the third parameter
-	if (size and type(size) == "table") then
-		LabelObject:SetTemplate(size)
-	end
-
-	return LabelObject
-end

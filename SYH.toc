@@ -1,7 +1,15 @@
 ## Interface: 90207
+## Interface-Mainline: 90207
+## Interface-BCC: 20504
+## Interface-Wrath: 30400
+## Interface-Classic: 11403
+
 ## Title: Auto Seller
 ## Notes: Help to sell itens for merchants.
-## SavedVariables: SalvageYardHDB
+## SavedVariables: AutoSellerDB
+
+## X-Curse-Project-ID: 90991
+## X-Wago-ID: RXKqBwGy
 
 #@version-retail@
 ## Version: @project-version@-Retail

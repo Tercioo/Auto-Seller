@@ -1,21 +1,21 @@
 {
 	"files": [
 		{
-			"path": "AutoSeller.lua",
-			"bookmarks": [
-				{
-					"line": 18,
-					"column": 0,
-					"label": ""
-				}
-			]
-		},
-		{
 			"path": "../FlashTaskBar/FlashTaskBar.lua",
 			"bookmarks": [
 				{
 					"line": 646,
 					"column": 42,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "AutoSeller.lua",
+			"bookmarks": [
+				{
+					"line": 874,
+					"column": 2,
 					"label": ""
 				}
 			]

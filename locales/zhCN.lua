@@ -1,5 +1,11 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("AutoSellerLocales", "zhCN") 
-if not L then return end 
+local addonId = ...
+local languageTable = DetailsFramework.Language.RegisterLanguage(addonId, "zhCN")
+local L = languageTable
+
+
+L["STRING_AUTOOPEN"] = "受到的技能伤害"
+L["STRING_AUTOOPEN_DESC"] = "减益和持续时间"
+L["STRING_AUTOREPAIR"] = "减益持续时间"
 
 --[[Translation missing --]]
 --[[ L["STRING_AHPRICE"] = ""--]] 

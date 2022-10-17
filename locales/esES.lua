@@ -1,5 +1,6 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("AutoSellerLocales", "esES") 
-if not L then return end 
+local addonId = ...
+local languageTable = DetailsFramework.Language.RegisterLanguage(addonId, "esES")
+local L = languageTable
 
 L["STRING_AHPRICE"] = "Precio subasta"
 L["STRING_AHPRICE_DESC"] = "Objetos con un valor de subasta |cFFFFFF00lmenor que|r este serán vendidos."

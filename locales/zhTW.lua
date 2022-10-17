@@ -1,5 +1,6 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("AutoSellerLocales", "zhTW") 
-if not L then return end 
+local addonId = ...
+local languageTable = DetailsFramework.Language.RegisterLanguage(addonId, "zhTW")
+local L = languageTable
 
 L["STRING_AHPRICE"] = "拍賣價格"
 L["STRING_AHPRICE_DESC"] = "拍賣價格|cFFFFFF00低於|r此的物品，將被出售。"

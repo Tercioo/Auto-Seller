@@ -1,5 +1,6 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("AutoSellerLocales", "frFR") 
-if not L then return end 
+local addonId = ...
+local languageTable = DetailsFramework.Language.RegisterLanguage(addonId, "frFR")
+local L = languageTable
 
 L["STRING_AHPRICE"] = "Prix HV"
 L["STRING_AHPRICE_DESC"] = [=[Les objets ayant une valeur  |cFFFFFF00inférieure|r à celle-ci à l'HV, seront vendus.

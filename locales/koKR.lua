@@ -1,5 +1,6 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("AutoSellerLocales", "koKR") 
-if not L then return end 
+local addonId = ...
+local languageTable = DetailsFramework.Language.RegisterLanguage(addonId, "koKR")
+local L = languageTable
 
 L["STRING_AHPRICE"] = "경매 가격"
 L["STRING_AHPRICE_DESC"] = [=[이 값보다 경매가가 |cFFFFFF00더 낮은|r 아이템을 판매합니다.

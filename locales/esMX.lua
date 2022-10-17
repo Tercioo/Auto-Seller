@@ -1,5 +1,6 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("AutoSellerLocales", "esMX") 
-if not L then return end 
+local addonId = ...
+local languageTable = DetailsFramework.Language.RegisterLanguage(addonId, "esMX")
+local L = languageTable
 
 --[[Translation missing --]]
 --[[ L["STRING_AHPRICE"] = ""--]] 
