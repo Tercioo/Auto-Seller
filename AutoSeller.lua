@@ -1204,13 +1204,8 @@ local autoRepair = function()
 
 			for i, repairSlot in ipairs(RepairSlots) do
 				local hasItem, hasCooldown, repairCost = tooltipScanner:SetInventoryItem("player", repairSlot:GetID())
-				local hasRepairCost = false
 
-				if repairCost then
-					hasRepairCost = repairCost <= GetMoney()
-				end
-
-				if (hasItem and hasRepairCost) then
+				if (hasItem and repairCost and repairCost <= GetMoney()) then
 					repairAllCost = repairAllCost - repairCost
 					repairSlot:Click()
 
