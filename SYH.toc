@@ -1,8 +1,9 @@
-## Interface: 100200
+## Interface: 110000
 ## Interface-Mainline: 100105
 ## Interface-BCC: 20504
 ## Interface-Wrath: 30401
 ## Interface-Classic: 11403
+## Interface-Cata: 40400
 
 ## Title: Auto Seller
 ## Notes: Help to sell itens for merchants.
