@@ -11,9 +11,11 @@ local GetContainerItemLink = GetContainerItemLink or C_Container.GetContainerIte
 local GetContainerItemID = GetContainerItemID or C_Container.GetContainerItemID
 local GetContainerNumSlots = GetContainerNumSlots or C_Container.GetContainerNumSlots
 local UseContainerItem = UseContainerItem or C_Container.UseContainerItem
-
+local GetItemInfo = C_Item and C_Item.GetItemInfo or GetItemInfo
 local GetContainerItemInfo = detailsFramework.Items.GetContainerItemInfo
 local IsItemSoulbound = detailsFramework.Items.IsItemSoulbound
+local GetDetailedItemLevelInfo = GetDetailedItemLevelInfo or C_Item.GetDetailedItemLevelInfo
+local GetCoinText = C_CurrencyInfo and C_CurrencyInfo.GetCoinText or GetCoinText
 
 local ignoredItemList = {
 	[44731] = true, --  Bouquet of Ebon Roses
