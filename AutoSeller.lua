@@ -1002,7 +1002,7 @@ function SYH:ShowPanel(loadOnly)
 					SYH.db.profile.SellGreenMaxLevel = value
 				end,
 				min = 6,
-				max = 500,
+				max = 700,
 				step = 1,
 				namePhraseId = "STRING_ITEMLEVEL",
 				descPhraseId = "STRING_ITEMLEVEL_DESC2",
@@ -1016,7 +1016,7 @@ function SYH:ShowPanel(loadOnly)
 					AutoSeller.db.profile.SellEpicGearThreshold = value
 				end,
 				min = 6,
-				max = 500,
+				max = 700,
 				step = 1,
 				namePhraseId = "STRING_EPICRANGE",
 				descPhraseId = "STRING_EPICRANGE_DESC",
