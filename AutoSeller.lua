@@ -277,6 +277,7 @@ function SYH:ShowPanel(loadOnly)
 						editbox:ClearFocus()
 					end
 				end
+				editbox:SetEnterFunction(addToIgnore)
 
 				local addButton = SYH:CreateButton(SYH.IgnorePanel, addToIgnore, 45, 20, createLocTable(addonId, "STRING_IGNOREADDBUTTONTEXT"), _, _, _, "AddButton", _, _)
 				editbox:SetPoint("topleft", SYH.IgnorePanel, "topleft", 7, -42)
@@ -308,6 +309,7 @@ function SYH:ShowPanel(loadOnly)
 				local text2 = SYH:CreateLabel(SYH.IgnorePanel, createLocTable(addonId, "STRING_IGNORE_ENTERKEYWORD"))
 				local editbox2 = SYH:CreateTextEntry(SYH.IgnorePanel, _, 160, 20, "EditBoxKeyWord")
 				editbox2.tooltip = createLocTable(addonId, "STRING_IGNORE_ENTERKEYWORD_DESC")
+				editbox2:SetEnterFunction(add_keyword_to_ignore)
 
 				local add_keyword_to_ignore = function()
 					local text = editbox2.text
@@ -323,6 +325,7 @@ function SYH:ShowPanel(loadOnly)
 						editbox2:ClearFocus()
 					end
 				end
+				editbox2:SetEnterFunction(add_keyword_to_ignore)
 
 				local add_button2 = SYH:CreateButton(SYH.IgnorePanel, add_keyword_to_ignore, 45, 20, createLocTable(addonId, "STRING_IGNOREADDBUTTONTEXT"), _, _, _, "AddButtonKeyWord")
 				text2:SetPoint("topleft", SYH.IgnorePanel, "topleft", 7, -70)
@@ -429,6 +432,8 @@ local add_to_selllist = function()
 						editbox:ClearFocus()
 					end
 				end
+				editbox:SetEnterFunction(add_to_selllist)
+
 				local add_button = SYH:CreateButton(SYH.SellListPanel, add_to_selllist, 45, 20, createLocTable(addonId, "STRING_SELLPANEL_ADDBUTTON"), _, _, _, "AddButton", _, _)
 
 				text:SetPoint("topleft", SYH.SellListPanel, "topleft", 7, -30)
