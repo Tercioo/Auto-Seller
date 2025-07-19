@@ -211,19 +211,6 @@ function SYH:ShowPanel(loadOnly)
 				editbox.tooltip = createLocTable(addonId, "STRING_IGNOREENTRYTEXT_DESC")
 				editbox.latest_item = {}
 
-				--hook the container buttons
-				local OnBackpackModifiedClickHook = function(button)
-					if (editbox.widget:HasFocus()) then
-						if (IsShiftKeyDown()) then
-							local link = GetContainerItemLink(button:GetParent():GetID(), button:GetID())
-							local name = GetItemInfo(link)
-							editbox.text = name or ""
-							editbox.latest_item [1] = name
-							editbox.latest_item [2] = link
-						end
-					end
-				end
-				hooksecurefunc("ContainerFrameItemButton_OnModifiedClick", OnBackpackModifiedClickHook)
 
 				local addToIgnore = function()
 					local text = editbox.text
@@ -343,15 +330,16 @@ function SYH:ShowPanel(loadOnly)
 				detailsFramework:ApplyStandardBackdrop(SYH.SellListPanel)
 
 				local text = SYH:CreateLabel(SYH.SellListPanel, createLocTable(addonId, "STRING_SELLPANEL_ITEMNAME"))
+				-- text:SetTextColor(1, 0, 0)
 				local editbox = SYH:CreateTextEntry(SYH.SellListPanel, _, 160, 20, "EditBox")
+				---editbox.editbox:SetTextColor(1, 0, 0)
 				editbox.tooltip = createLocTable(addonId, "STRING_IGNOREENTRYTEXT_DESC")
 				editbox.latest_item = {}
 
 				-- Hook the container buttons
-				local hook_backpack = function(button)
+				local hook_backpack = function(link, itemLocation)
 					if (editbox.widget:HasFocus()) then
-						if (IsShiftKeyDown()) then
-							local link = GetContainerItemLink(button:GetParent():GetID(), button:GetID())
+						if (IsShiftKeyDown() and itemLocation and itemLocation:IsBagAndSlot()) then
 							local name = GetItemInfo(link)
 							editbox.text = name or ""
 							editbox.latest_item [1] = name
@@ -359,9 +347,34 @@ function SYH:ShowPanel(loadOnly)
 						end
 					end
 				end
-				hooksecurefunc("ContainerFrameItemButton_OnModifiedClick", hook_backpack)
+				hooksecurefunc("HandleModifiedItemClick", hook_backpack)
 
-				local add_to_selllist = function()
+				OnBackpackModifiedClickHook = function(link, itemLocation)
+					if (editbox.widget:HasFocus()) then
+						if (IsShiftKeyDown() and itemLocation and itemLocation:IsBagAndSlot()) then
+							local name = GetItemInfo(link)
+							editbox.text = name or ""
+							editbox.latest_item [1] = name
+							editbox.latest_item [2] = link
+						end
+					end
+				end
+	hooksecurefunc("HandleModifiedItemClick", OnBackpackModifiedClickHook)
+
+
+hook_backpack = function(link, itemLocation)
+					if (editbox.widget:HasFocus()) then
+						if (IsShiftKeyDown() and itemLocation and itemLocation:IsBagAndSlot()) then
+							local name = GetItemInfo(link)
+							editbox.text = name or ""
+							editbox.latest_item [1] = name
+							editbox.latest_item [2] = link
+						end
+					end
+				end
+	hooksecurefunc("HandleModifiedItemClick", hook_backpack)
+
+local add_to_selllist = function()
 					local text = editbox.text
 					text = SYH:trim (text)
 					if (text ~= "") then
