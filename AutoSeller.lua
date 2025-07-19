@@ -207,6 +207,7 @@ function SYH:ShowPanel(loadOnly)
 				text:SetPoint("topleft", SYH.IgnorePanel, "topleft", 7, -30)
 
 				local editbox = SYH:CreateTextEntry(SYH.IgnorePanel, _, 160, 20, "EditBox")
+				SYH.IgnorePanel.editbox = editbox
 				editbox.tooltip = createLocTable(addonId, "STRING_IGNOREENTRYTEXT_DESC")
 				editbox.latest_item = {}
 
@@ -360,6 +361,7 @@ function SYH:ShowPanel(loadOnly)
 			end
 
 			SYH.IgnorePanel:Show()
+			if SYH.IgnorePanel.editbox then SYH.IgnorePanel.editbox:SetFocus() end
 		end
 
 		local openSellListPanel = function(self)
@@ -373,6 +375,7 @@ function SYH:ShowPanel(loadOnly)
 				local text = SYH:CreateLabel(SYH.SellListPanel, createLocTable(addonId, "STRING_SELLPANEL_ITEMNAME"))
 				-- text:SetTextColor(1, 0, 0)
 				local editbox = SYH:CreateTextEntry(SYH.SellListPanel, _, 160, 20, "EditBox")
+				SYH.SellListPanel.editbox = editbox
 				---editbox.editbox:SetTextColor(1, 0, 0)
 				editbox.tooltip = createLocTable(addonId, "STRING_IGNOREENTRYTEXT_DESC")
 				editbox.latest_item = {}
@@ -476,6 +479,7 @@ local add_to_selllist = function()
 			end
 
 			SYH.SellListPanel:Show()
+			if SYH.SellListPanel.editbox then SYH.SellListPanel.editbox:SetFocus() end
 		end
 
 		local containers = {}
