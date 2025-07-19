@@ -1,4 +1,3 @@
-
 local _
 local version = "unknown version"
 local addonId = ...
@@ -211,6 +210,45 @@ function SYH:ShowPanel(loadOnly)
 				editbox.tooltip = createLocTable(addonId, "STRING_IGNOREENTRYTEXT_DESC")
 				editbox.latest_item = {}
 
+				-- Hook the container buttons
+				local hook_backpack = function(link, itemLocation)
+					if (editbox.widget:HasFocus()) then
+						if (IsShiftKeyDown() and itemLocation and itemLocation:IsBagAndSlot()) then
+							local name = GetItemInfo(link)
+							editbox.text = name or ""
+							editbox.latest_item [1] = name
+							editbox.latest_item [2] = link
+						end
+					end
+				end
+				hooksecurefunc("HandleModifiedItemClick", hook_backpack)
+
+				-- Hook the container buttons
+				local hook_backpack = function(link, itemLocation)
+					if (editbox.widget:HasFocus()) then
+						if (IsShiftKeyDown() and itemLocation and itemLocation:IsBagAndSlot()) then
+							local name = GetItemInfo(link)
+							editbox.text = name or ""
+							editbox.latest_item [1] = name
+							editbox.latest_item [2] = link
+						end
+					end
+				end
+				hooksecurefunc("HandleModifiedItemClick", hook_backpack)
+
+				-- Add a second hook to match AutoSell panel behavior
+				SYH_IgnorePanel_OnBackpackModifiedClickHook = function(link, itemLocation)
+					if (editbox.widget:HasFocus()) then
+						if (IsShiftKeyDown() and itemLocation and itemLocation:IsBagAndSlot()) then
+							local name = GetItemInfo(link)
+							editbox.text = name or ""
+							editbox.latest_item [1] = name
+							editbox.latest_item [2] = link
+						end
+					end
+				end
+				hooksecurefunc("HandleModifiedItemClick", SYH_IgnorePanel_OnBackpackModifiedClickHook)
+
 
 				local addToIgnore = function()
 					local text = editbox.text
@@ -362,17 +400,7 @@ function SYH:ShowPanel(loadOnly)
 	hooksecurefunc("HandleModifiedItemClick", OnBackpackModifiedClickHook)
 
 
-hook_backpack = function(link, itemLocation)
-					if (editbox.widget:HasFocus()) then
-						if (IsShiftKeyDown() and itemLocation and itemLocation:IsBagAndSlot()) then
-							local name = GetItemInfo(link)
-							editbox.text = name or ""
-							editbox.latest_item [1] = name
-							editbox.latest_item [2] = link
-						end
-					end
-				end
-	hooksecurefunc("HandleModifiedItemClick", hook_backpack)
+
 
 local add_to_selllist = function()
 					local text = editbox.text
