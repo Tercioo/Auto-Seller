@@ -1,4 +1,3 @@
-
 local _
 local version = "unknown version"
 local addonId = ...
@@ -208,14 +207,14 @@ function SYH:ShowPanel(loadOnly)
 				text:SetPoint("topleft", SYH.IgnorePanel, "topleft", 7, -30)
 
 				local editbox = SYH:CreateTextEntry(SYH.IgnorePanel, _, 160, 20, "EditBox")
+				SYH.IgnorePanel.editbox = editbox
 				editbox.tooltip = createLocTable(addonId, "STRING_IGNOREENTRYTEXT_DESC")
 				editbox.latest_item = {}
 
-				--hook the container buttons
-				local OnBackpackModifiedClickHook = function(button)
+				-- Hook the container buttons
+				local hook_backpack = function(link, itemLocation)
 					if (editbox.widget:HasFocus()) then
-						if (IsShiftKeyDown()) then
-							local link = GetContainerItemLink(button:GetParent():GetID(), button:GetID())
+						if (IsShiftKeyDown() and itemLocation and itemLocation:IsBagAndSlot()) then
 							local name = GetItemInfo(link)
 							editbox.text = name or ""
 							editbox.latest_item [1] = name
@@ -223,7 +222,34 @@ function SYH:ShowPanel(loadOnly)
 						end
 					end
 				end
-				hooksecurefunc("ContainerFrameItemButton_OnModifiedClick", OnBackpackModifiedClickHook)
+				hooksecurefunc("HandleModifiedItemClick", hook_backpack)
+
+				-- Hook the container buttons
+				local hook_backpack = function(link, itemLocation)
+					if (editbox.widget:HasFocus()) then
+						if (IsShiftKeyDown() and itemLocation and itemLocation:IsBagAndSlot()) then
+							local name = GetItemInfo(link)
+							editbox.text = name or ""
+							editbox.latest_item [1] = name
+							editbox.latest_item [2] = link
+						end
+					end
+				end
+				hooksecurefunc("HandleModifiedItemClick", hook_backpack)
+
+				-- Add a second hook to match AutoSell panel behavior
+				SYH_IgnorePanel_OnBackpackModifiedClickHook = function(link, itemLocation)
+					if (editbox.widget:HasFocus()) then
+						if (IsShiftKeyDown() and itemLocation and itemLocation:IsBagAndSlot()) then
+							local name = GetItemInfo(link)
+							editbox.text = name or ""
+							editbox.latest_item [1] = name
+							editbox.latest_item [2] = link
+						end
+					end
+				end
+				hooksecurefunc("HandleModifiedItemClick", SYH_IgnorePanel_OnBackpackModifiedClickHook)
+
 
 				local addToIgnore = function()
 					local text = editbox.text
@@ -252,6 +278,7 @@ function SYH:ShowPanel(loadOnly)
 						editbox:ClearFocus()
 					end
 				end
+				editbox:SetEnterFunction(addToIgnore)
 
 				local addButton = SYH:CreateButton(SYH.IgnorePanel, addToIgnore, 45, 20, createLocTable(addonId, "STRING_IGNOREADDBUTTONTEXT"), _, _, _, "AddButton", _, _)
 				editbox:SetPoint("topleft", SYH.IgnorePanel, "topleft", 7, -42)
@@ -283,6 +310,7 @@ function SYH:ShowPanel(loadOnly)
 				local text2 = SYH:CreateLabel(SYH.IgnorePanel, createLocTable(addonId, "STRING_IGNORE_ENTERKEYWORD"))
 				local editbox2 = SYH:CreateTextEntry(SYH.IgnorePanel, _, 160, 20, "EditBoxKeyWord")
 				editbox2.tooltip = createLocTable(addonId, "STRING_IGNORE_ENTERKEYWORD_DESC")
+				editbox2:SetEnterFunction(add_keyword_to_ignore)
 
 				local add_keyword_to_ignore = function()
 					local text = editbox2.text
@@ -298,6 +326,7 @@ function SYH:ShowPanel(loadOnly)
 						editbox2:ClearFocus()
 					end
 				end
+				editbox2:SetEnterFunction(add_keyword_to_ignore)
 
 				local add_button2 = SYH:CreateButton(SYH.IgnorePanel, add_keyword_to_ignore, 45, 20, createLocTable(addonId, "STRING_IGNOREADDBUTTONTEXT"), _, _, _, "AddButtonKeyWord")
 				text2:SetPoint("topleft", SYH.IgnorePanel, "topleft", 7, -70)
@@ -332,6 +361,7 @@ function SYH:ShowPanel(loadOnly)
 			end
 
 			SYH.IgnorePanel:Show()
+			if SYH.IgnorePanel.editbox then SYH.IgnorePanel.editbox:SetFocus() end
 		end
 
 		local openSellListPanel = function(self)
@@ -343,15 +373,17 @@ function SYH:ShowPanel(loadOnly)
 				detailsFramework:ApplyStandardBackdrop(SYH.SellListPanel)
 
 				local text = SYH:CreateLabel(SYH.SellListPanel, createLocTable(addonId, "STRING_SELLPANEL_ITEMNAME"))
+				-- text:SetTextColor(1, 0, 0)
 				local editbox = SYH:CreateTextEntry(SYH.SellListPanel, _, 160, 20, "EditBox")
+				SYH.SellListPanel.editbox = editbox
+				---editbox.editbox:SetTextColor(1, 0, 0)
 				editbox.tooltip = createLocTable(addonId, "STRING_IGNOREENTRYTEXT_DESC")
 				editbox.latest_item = {}
 
 				-- Hook the container buttons
-				local hook_backpack = function(button)
+				local hook_backpack = function(link, itemLocation)
 					if (editbox.widget:HasFocus()) then
-						if (IsShiftKeyDown()) then
-							local link = GetContainerItemLink(button:GetParent():GetID(), button:GetID())
+						if (IsShiftKeyDown() and itemLocation and itemLocation:IsBagAndSlot()) then
 							local name = GetItemInfo(link)
 							editbox.text = name or ""
 							editbox.latest_item [1] = name
@@ -359,9 +391,24 @@ function SYH:ShowPanel(loadOnly)
 						end
 					end
 				end
-				hooksecurefunc("ContainerFrameItemButton_OnModifiedClick", hook_backpack)
+				hooksecurefunc("HandleModifiedItemClick", hook_backpack)
 
-				local add_to_selllist = function()
+				OnBackpackModifiedClickHook = function(link, itemLocation)
+					if (editbox.widget:HasFocus()) then
+						if (IsShiftKeyDown() and itemLocation and itemLocation:IsBagAndSlot()) then
+							local name = GetItemInfo(link)
+							editbox.text = name or ""
+							editbox.latest_item [1] = name
+							editbox.latest_item [2] = link
+						end
+					end
+				end
+	hooksecurefunc("HandleModifiedItemClick", OnBackpackModifiedClickHook)
+
+
+
+
+local add_to_selllist = function()
 					local text = editbox.text
 					text = SYH:trim (text)
 					if (text ~= "") then
@@ -388,6 +435,8 @@ function SYH:ShowPanel(loadOnly)
 						editbox:ClearFocus()
 					end
 				end
+				editbox:SetEnterFunction(add_to_selllist)
+
 				local add_button = SYH:CreateButton(SYH.SellListPanel, add_to_selllist, 45, 20, createLocTable(addonId, "STRING_SELLPANEL_ADDBUTTON"), _, _, _, "AddButton", _, _)
 
 				text:SetPoint("topleft", SYH.SellListPanel, "topleft", 7, -30)
@@ -430,6 +479,7 @@ function SYH:ShowPanel(loadOnly)
 			end
 
 			SYH.SellListPanel:Show()
+			if SYH.SellListPanel.editbox then SYH.SellListPanel.editbox:SetFocus() end
 		end
 
 		local containers = {}
