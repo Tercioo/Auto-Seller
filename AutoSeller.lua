@@ -1393,7 +1393,7 @@ function SYH:Sell(onlyGrayItems)
 		SYH:CancelTimer (SYH.SellThreadExec)
 	end
 
-	SYH.SellThreadExec = SYH:ScheduleRepeatingTimer("SellThread", 0.2, itemsAvailableToSell)
+	SYH.SellThreadExec = SYH:ScheduleRepeatingTimer("SellThread", 0.02, itemsAvailableToSell)
 end
 
 function SYH:SellThread(itemList)
